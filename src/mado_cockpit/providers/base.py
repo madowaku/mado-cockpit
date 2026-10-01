@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,16 +40,20 @@ class SubprocessRunner:
         *,
         cwd: Path,
     ) -> CommandResult:
+        requested = str(args[0])
+        executable = shutil.which(requested) or requested
+        command = [executable, *list(args[1:])]
+
         try:
             result = subprocess.run(
-                list(args),
+                command,
                 cwd=str(cwd),
                 capture_output=True,
                 text=True,
             )
         except FileNotFoundError as exc:
             raise RuntimeError(
-                f"Executable not found: {args[0]}"
+                f"Executable not found: {requested}"
             ) from exc
 
         return CommandResult(
