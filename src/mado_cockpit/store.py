@@ -56,6 +56,21 @@ class CockpitStore:
             )
         )
 
+    def get_mission(
+        self,
+        mission_id: str,
+    ) -> dict[str, Any]:
+        self._require_initialized()
+        path = (
+            self.missions_dir
+            / f"{mission_id}.json"
+        )
+        if not path.exists():
+            raise RuntimeError(
+                f"Mission not found: {mission_id}"
+            )
+        return self._read_json(path)
+
     def save_worker(self, worker: Worker) -> None:
         self._require_initialized()
         self._write_json(
