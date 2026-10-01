@@ -153,6 +153,41 @@ class ResultContract:
 
 
 @dataclass(slots=True)
+class HandoffContract:
+    id: str
+    source_task_id: str
+    source_result_id: str
+    source_bundle_id: str
+    source_worker_id: str
+    source_workspace_id: str
+    qa_worker_id: str
+    qa_workspace_id: str
+    qa_task_id: str
+    snapshot_path: str
+    snapshot_sha256: str
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class QAVerdict:
+    id: str
+    handoff_id: str
+    qa_task_id: str
+    qa_result_id: str
+    qa_worker_id: str
+    verdict: str
+    summary: str
+    source_snapshot_sha256: str
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Event:
     type: str
     subject: dict[str, Any]
