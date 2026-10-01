@@ -184,9 +184,24 @@ def test_builder_to_qa_handoff_passes_with_independent_report(
         / handoff["snapshot_path"]
     )
     assert snapshot.is_dir()
-    assert (snapshot / "manifest.json").is_file()
-    assert (snapshot / "task.json").is_file()
-    assert (snapshot / "result.json").is_file()
+    source_bundle = snapshot / "source_bundle"
+    source_tree = snapshot / "source_tree"
+    assert (source_bundle / "manifest.json").is_file()
+    assert (source_bundle / "task.json").is_file()
+    assert (source_bundle / "result.json").is_file()
+    assert (
+        source_tree / "feature.txt"
+    ).read_text(
+        encoding="utf-8"
+    ) == "builder implementation\n"
+    assert (
+        source_tree / "tests.txt"
+    ).read_text(
+        encoding="utf-8"
+    ) == "7 passed\n"
+    assert (
+        snapshot / "source_state.json"
+    ).is_file()
 
     qa_task = evidence.get_task(
         handoff["qa_task_id"]
@@ -368,6 +383,7 @@ def test_qa_verdict_rejects_modified_source_snapshot(
     snapshot_result = (
         Path(qa_workspace.path)
         / handoff["snapshot_path"]
+        / "source_bundle"
         / "result.json"
     )
     snapshot_result.write_text(
