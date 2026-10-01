@@ -4,20 +4,36 @@
 
 It turns AI agents, workspaces, capabilities, evidence, and human decisions into one observable production team.
 
-## MCC-M0.0 Skeleton
+## Current spine
 
-The first milestone deliberately starts below the UI layer.
+### MCC-M0.0 Skeleton
 
-It establishes:
+Established:
 
 - Project
 - Mission
 - Worker
 - Event
 - local JSON state store
-- CLI commands for initialization, mission creation, worker creation, and status
+- initialization, mission, worker, and status CLI commands
 
-The goal is to make the control-plane spine executable before adding worktrees, agent adapters, evidence bundles, or a graphical cockpit.
+### MCC-M0.1 Worktree Worker
+
+Adds isolated Git workspaces for workers.
+
+Each worker receives a deterministic branch and linked worktree:
+
+```text
+Mission MCC-M0.1
+├─ builder
+│  ├─ branch: cockpit/mcc-m0.1-builder
+│  └─ .mado/worktrees/mcc-m0.1-builder
+└─ qa
+   ├─ branch: cockpit/mcc-m0.1-qa
+   └─ .mado/worktrees/mcc-m0.1-qa
+```
+
+Workspace lifecycle is persisted under `.mado/cockpit/workspaces/` and emits `workspace.created` / `workspace.removed` events.
 
 ## Quick start
 
@@ -28,17 +44,47 @@ pip install -e ".[dev]"
 
 mado-cockpit init
 mado-cockpit mission create MCC-DEMO "Build the first cockpit fixture"
+
 mado-cockpit worker create builder --role builder --mission MCC-DEMO
+mado-cockpit worker create qa --role qa --mission MCC-DEMO
+
+mado-cockpit workspace create builder
+mado-cockpit workspace create qa
+
+mado-cockpit workspace list
+mado-cockpit workspace status mcc-demo-builder
+
 mado-cockpit status
 pytest
 ```
 
-State is stored under `.mado/cockpit/`.
+Cleanup:
+
+```bash
+mado-cockpit workspace remove mcc-demo-builder --force --delete-branch
+mado-cockpit workspace remove mcc-demo-qa --force --delete-branch
+```
+
+State is stored under `.mado/cockpit/`. Linked worktrees live under `.mado/worktrees/`.
+
+## MCC-M0.1 golden fixture
+
+The fixture proves:
+
+```text
+2 workers
+2 worktrees
+1 repository
+0 shared uncommitted files
+0 workspace collision
+```
+
+Each worker writes a different file into its worktree. The test verifies that neither file appears in the other worker's workspace, then removes both worktrees and their fixture branches.
 
 ## Milestone path
 
-1. **MCC-M0.0 Skeleton** — domain model, state store, CLI
-2. **MCC-M0.1 Worktree Worker** — isolated Git worktrees
+1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
+2. **MCC-M0.1 Worktree Worker** — isolated Git worktrees ✅
 3. **MCC-M0.2 Agent Session Adapter** — Codex CLI first
 4. **MCC-M0.3 Evidence Return** — task/result/evidence contracts
 5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop
