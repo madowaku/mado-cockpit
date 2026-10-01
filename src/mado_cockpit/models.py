@@ -188,6 +188,79 @@ class QAVerdict:
 
 
 @dataclass(slots=True)
+class CapabilityDescriptor:
+    id: str
+    kind: str
+    name: str
+    short_description: str
+    availability: str
+    full_description: str | None = None
+    instructions_ref: str | None = None
+    prerequisites: list[str] = field(default_factory=list)
+    risk_tags: list[str] = field(default_factory=list)
+    cost_class: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class CapabilityRequest:
+    id: str
+    worker_id: str
+    request: str
+    trace_id: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class CapabilitySuggestion:
+    suggested_capability: str | None
+    confidence: float
+    alternatives: list[str]
+    reason_codes: list[str]
+    advisory_only: bool
+    wide_trace_id: str
+    deep_trace_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class CapabilityResolution:
+    id: str
+    request_id: str
+    worker_id: str
+    status: str
+    selected_capability: str | None
+    suggestion: CapabilitySuggestion
+    policy_reasons: list[str] = field(default_factory=list)
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class CapabilityBinding:
+    id: str
+    worker_id: str
+    capability_id: str
+    resolution_id: str
+    status: str = "bound"
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class OperatorPlan:
     id: str
     mission_id: str
