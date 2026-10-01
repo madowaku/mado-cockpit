@@ -158,6 +158,54 @@ If a recorded Builder or QA session is still active, `operator launch` resumes t
 
 A `needs_fix` verdict routes the original Builder Task back for revision. A new validated Builder Result creates a fresh Handoff while preserving the previous review history.
 
+
+### MCC-M0.6 Capability Pager Bridge
+
+Workers can now receive capabilities through a **System One-compatible advisory resolution contract** instead of treating tools as ambient global powers.
+
+```text
+Task / Worker need
+      ↓
+Capability Request
+      ↓
+Capability Pager
+      ↓
+System One suggestion
+(advisoryOnly = true)
+      ↓
+Cockpit Policy Gate
+├─ availability
+├─ confidence
+├─ cost class
+├─ risk tags
+└─ prerequisites
+      ↓
+Capability Binding
+      ↓
+Worker prompt / execution boundary
+```
+
+The registry uses the same public descriptor fields as MADO SYSTEM ONE: `kind`, `availability`, `prerequisites`, `riskTags`, `costClass`, descriptions, and optional instruction references.
+
+System One does **not** get final execution authority. Its suggestion remains advisory. Cockpit rechecks policy and may reject the primary suggestion, select an allowed alternative, or leave the request unresolved.
+
+Default Cockpit policy is conservative:
+
+```text
+minimum confidence: 0.40
+maximum cost class: low
+denied risks:
+  billing
+  production
+  publish
+  delete
+  external_message
+```
+
+When a capability registry is active, `operator launch` fails closed if that Worker has no bound capability. Registry-free M0.5 workflows remain backward compatible.
+
+The real bridge lives at `scripts/system_one_capability_bridge.mjs`. It loads the local built `mado-system-one/dist/src/index.js` and executes the actual System One `CapabilityRegistry` and `CapabilityResolver`. The M0.6 bridge provider is deterministic and zero-quota, so integration can be exercised without consuming API credit.
+
 ## Quick start
 
 ```bash
@@ -311,6 +359,40 @@ mado-cockpit operator status <OPERATOR_ID>
 mado-cockpit operator list
 ```
 
+Enable the M0.6 capability layer by importing a System One-compatible registry:
+
+```bash
+mado-cockpit capability import fixtures/capabilities/mcc-m0.6.json
+mado-cockpit capability list
+```
+
+Resolve and bind a capability with the zero-quota deterministic pager:
+
+```bash
+mado-cockpit operator capability <OPERATOR_ID> builder
+mado-cockpit capability bindings
+```
+
+After that, `operator launch` includes the bound capability and its `instructionsRef` in the worker prompt.
+
+To exercise the actual MADO SYSTEM ONE resolver locally, first build System One:
+
+```bash
+cd C:\Dev\Projects\mado-system-one
+npm install
+npm run build
+```
+
+Then point Cockpit at that repo:
+
+```bash
+mado-cockpit operator capability <OPERATOR_ID> builder \
+  --pager system-one \
+  --system-one-root C:\Dev\Projects\mado-system-one
+```
+
+The bridge itself is still zero-quota in M0.6: it uses a deterministic fixture provider *inside* the real System One resolver. This verifies the cross-repo contract without silently invoking a paid model.
+
 MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop` closes a turn-based session only when no turn is executing.
 
 ## Local state
@@ -345,6 +427,11 @@ MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop`
 │  │  └─ <operator-id>/
 │  │     ├─ plan.json
 │  │     └─ state.json
+│  ├─ capabilities/
+│  │  ├─ registry.json
+│  │  ├─ requests/
+│  │  ├─ resolutions/
+│  │  └─ bindings/
 │  └─ events.jsonl
 └─ worktrees/
    └─ <mission>-<worker>/
@@ -420,6 +507,25 @@ operator stop           → recorded session closed
 
 The model-facing fixtures use an injected fake provider, so Operator tests do not consume Codex quota.
 
+
+## MCC-M0.6 golden fixtures
+
+The Capability Pager fixtures verify:
+
+```text
+System One camelCase registry → Cockpit descriptor import
+deterministic task match       → capability binding
+dangerous/high-cost primary    → rejected by Cockpit policy
+safe advisory alternative      → selected and bound
+no safe candidate              → unresolved, no binding
+System One JSON suggestion     → bridge contract accepted
+registry active + no binding   → Operator launch rejected
+bound capability               → injected into Worker prompt
+capability request/resolution  → Event Spine persisted
+```
+
+The default tests do not require Node, System One, Laya, or model quota. The Node bridge is an opt-in local integration surface against a built `mado-system-one` checkout.
+
 ## Milestone path
 
 1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
@@ -428,7 +534,7 @@ The model-facing fixtures use an injected fake provider, so Operator tests do no
 4. **MCC-M0.3 Evidence Return** — task/result/evidence contracts ✅
 5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop ✅
 6. **MCC-M0.5 Operator** — deterministic agent-controlled cockpit ✅
-7. **MCC-M0.6 Capability Pager Bridge**
+7. **MCC-M0.6 Capability Pager Bridge** ✅
 8. **MCC-M0.7 Human Question Gate**
 9. **MCC-M0.8 Cockpit UI**
 
