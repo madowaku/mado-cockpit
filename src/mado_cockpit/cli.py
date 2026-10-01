@@ -8,6 +8,7 @@ from pathlib import Path
 from .evidence import EvidenceManager
 from .handoffs import HandoffManager
 from .models import Mission, Project, Worker
+from .operator import OperatorManager
 from .providers import CodexCLIProvider
 from .sessions import SessionManager
 from .store import CockpitStore
@@ -344,6 +345,150 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    operator = sub.add_parser(
+        "operator",
+        help="Deterministic production operator",
+    )
+    operator_sub = operator.add_subparsers(
+        dest="operator_command",
+        required=True,
+    )
+
+    operator_start = operator_sub.add_parser(
+        "start",
+        help="Provision Builder, QA, worktrees, and Builder task",
+    )
+    operator_start.add_argument("mission_id")
+    operator_start.add_argument("objective")
+    operator_start.add_argument(
+        "--require",
+        action="append",
+        required=True,
+        dest="required_evidence",
+    )
+    operator_start.add_argument(
+        "--provider",
+        default="codex",
+        choices=["codex"],
+    )
+    operator_start.add_argument(
+        "--base-ref",
+        default="HEAD",
+    )
+
+    operator_sub.add_parser(
+        "list",
+        help="List operator runs",
+    )
+
+    operator_status = operator_sub.add_parser(
+        "status",
+        help="Inspect one operator run",
+    )
+    operator_status.add_argument("operator_id")
+
+    operator_advance = operator_sub.add_parser(
+        "advance",
+        help="Advance deterministic orchestration state",
+    )
+    operator_advance.add_argument("operator_id")
+
+    operator_launch = operator_sub.add_parser(
+        "launch",
+        help="Start or resume a Builder/QA Codex turn",
+    )
+    operator_launch.add_argument("operator_id")
+    operator_launch.add_argument(
+        "role",
+        choices=["builder", "qa"],
+    )
+    operator_launch.add_argument("--model")
+    operator_launch.add_argument(
+        "--codex-binary",
+        default=os.environ.get(
+            "MADO_CODEX_BIN",
+            "codex",
+        ),
+    )
+
+    operator_stop = operator_sub.add_parser(
+        "stop",
+        help="Stop a recorded Builder/QA session between turns",
+    )
+    operator_stop.add_argument("operator_id")
+    operator_stop.add_argument(
+        "role",
+        choices=["builder", "qa"],
+    )
+    operator_stop.add_argument(
+        "--codex-binary",
+        default=os.environ.get(
+            "MADO_CODEX_BIN",
+            "codex",
+        ),
+    )
+
+    operator_result = operator_sub.add_parser(
+        "result",
+        help="Submit Builder/QA result through the operator",
+    )
+    operator_result.add_argument("operator_id")
+    operator_result.add_argument(
+        "role",
+        choices=["builder", "qa"],
+    )
+    operator_result.add_argument(
+        "--status",
+        required=True,
+        choices=[
+            "completed",
+            "blocked",
+            "failed",
+        ],
+    )
+    operator_result.add_argument(
+        "--summary",
+        required=True,
+    )
+    operator_result.add_argument(
+        "--evidence",
+        action="append",
+        default=[],
+        metavar="KIND=PATH",
+    )
+    operator_result.add_argument(
+        "--change",
+        action="append",
+        default=[],
+    )
+    operator_result.add_argument(
+        "--risk",
+        action="append",
+        default=[],
+    )
+
+    operator_verdict = operator_sub.add_parser(
+        "verdict",
+        help="Resolve the current QA handoff",
+    )
+    operator_verdict.add_argument("operator_id")
+    operator_verdict.add_argument(
+        "--verdict",
+        required=True,
+        choices=[
+            "pass",
+            "needs_fix",
+            "blocked",
+        ],
+    )
+    operator_verdict.add_argument(
+        "--summary",
+        required=True,
+    )
+    operator_verdict.add_argument(
+        "--qa-result",
+    )
+
     sub.add_parser(
         "status",
         help="Show cockpit status",
@@ -650,6 +795,109 @@ def main(
             )
             return 0
 
+    if args.command == "operator":
+        manager = OperatorManager(store)
+
+        if args.operator_command == "start":
+            _print_json(
+                manager.start(
+                    args.mission_id,
+                    args.objective,
+                    required_evidence=(
+                        args.required_evidence
+                    ),
+                    provider=args.provider,
+                    base_ref=args.base_ref,
+                )
+            )
+            return 0
+
+        if args.operator_command == "list":
+            _print_json(
+                manager.list()
+            )
+            return 0
+
+        if args.operator_command == "status":
+            _print_json(
+                manager.inspect(
+                    args.operator_id
+                )
+            )
+            return 0
+
+        if args.operator_command == "advance":
+            _print_json(
+                manager.advance(
+                    args.operator_id
+                )
+            )
+            return 0
+
+        if args.operator_command == "launch":
+            sessions = _session_manager(
+                store,
+                codex_binary=(
+                    args.codex_binary
+                ),
+            )
+            _print_json(
+                manager.launch(
+                    args.operator_id,
+                    args.role,
+                    sessions=sessions,
+                    model=args.model,
+                )
+            )
+            return 0
+
+        if args.operator_command == "stop":
+            sessions = _session_manager(
+                store,
+                codex_binary=(
+                    args.codex_binary
+                ),
+            )
+            _print_json(
+                manager.stop(
+                    args.operator_id,
+                    args.role,
+                    sessions=sessions,
+                )
+            )
+            return 0
+
+        if args.operator_command == "result":
+            _print_json(
+                manager.submit_result(
+                    args.operator_id,
+                    args.role,
+                    status=args.status,
+                    summary=args.summary,
+                    evidence_files=(
+                        _parse_evidence_specs(
+                            args.evidence
+                        )
+                    ),
+                    changes=args.change,
+                    risks=args.risk,
+                )
+            )
+            return 0
+
+        if args.operator_command == "verdict":
+            _print_json(
+                manager.verdict(
+                    args.operator_id,
+                    verdict=args.verdict,
+                    summary=args.summary,
+                    qa_result_id=(
+                        args.qa_result
+                    ),
+                )
+            )
+            return 0
+
     if args.command == "status":
         snapshot = store.snapshot()
         snapshot["evidence"] = (
@@ -657,6 +905,9 @@ def main(
         )
         snapshot["handoffs"] = (
             HandoffManager(store).summary()
+        )
+        snapshot["operators"] = (
+            OperatorManager(store).summary()
         )
         _print_json(snapshot)
         return 0
