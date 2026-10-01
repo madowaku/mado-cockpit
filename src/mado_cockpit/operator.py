@@ -22,6 +22,7 @@ from .worktrees import WorktreeManager
 _TERMINAL_OPERATOR_STATES = {
     "completed",
     "blocked",
+    "failed",
 }
 
 
