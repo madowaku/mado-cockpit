@@ -5,6 +5,12 @@ import json
 import os
 from pathlib import Path
 
+from .capabilities import (
+    CapabilityManager,
+    CapabilityPolicy,
+    DeterministicCapabilityPager,
+    SystemOnePagerBridge,
+)
 from .evidence import EvidenceManager
 from .handoffs import HandoffManager
 from .models import Mission, Project, Worker
@@ -345,6 +351,44 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    capability = sub.add_parser(
+        "capability",
+        help="Capability Pager bridge operations",
+    )
+    capability_sub = capability.add_subparsers(
+        dest="capability_command",
+        required=True,
+    )
+
+    capability_import = capability_sub.add_parser(
+        "import",
+        help="Import a System One-compatible capability registry",
+    )
+    capability_import.add_argument("path")
+
+    capability_sub.add_parser(
+        "list",
+        help="List capability descriptors",
+    )
+
+    capability_resolve = capability_sub.add_parser(
+        "resolve",
+        help="Resolve and bind a capability for a worker",
+    )
+    capability_resolve.add_argument("worker_id")
+    capability_resolve.add_argument("request")
+    _add_capability_pager_args(
+        capability_resolve
+    )
+
+    capability_bindings = capability_sub.add_parser(
+        "bindings",
+        help="List capability bindings",
+    )
+    capability_bindings.add_argument(
+        "--worker",
+    )
+
     operator = sub.add_parser(
         "operator",
         help="Deterministic production operator",
@@ -467,6 +511,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
     )
 
+    operator_capability = operator_sub.add_parser(
+        "capability",
+        help="Resolve and bind a capability for Builder/QA",
+    )
+    operator_capability.add_argument(
+        "operator_id"
+    )
+    operator_capability.add_argument(
+        "role",
+        choices=["builder", "qa"],
+    )
+    operator_capability.add_argument(
+        "--request",
+    )
+    _add_capability_pager_args(
+        operator_capability
+    )
+
     operator_verdict = operator_sub.add_parser(
         "verdict",
         help="Resolve the current QA handoff",
@@ -494,6 +556,118 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show cockpit status",
     )
     return parser
+
+
+def _add_capability_pager_args(
+    parser: argparse.ArgumentParser,
+) -> None:
+    parser.add_argument(
+        "--pager",
+        choices=[
+            "deterministic",
+            "system-one",
+        ],
+        default="deterministic",
+    )
+    parser.add_argument(
+        "--system-one-root",
+        default=os.environ.get(
+            "MADO_SYSTEM_ONE_ROOT"
+        ),
+    )
+    parser.add_argument(
+        "--node-binary",
+        default=os.environ.get(
+            "MADO_NODE_BIN",
+            "node",
+        ),
+    )
+    parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=0.4,
+    )
+    parser.add_argument(
+        "--max-cost",
+        choices=[
+            "free",
+            "low",
+            "medium",
+            "high",
+        ],
+        default="low",
+    )
+    parser.add_argument(
+        "--deny-risk",
+        action="append",
+        default=[],
+    )
+
+
+def _capability_pager(
+    args: argparse.Namespace,
+):
+    if args.pager == "deterministic":
+        return DeterministicCapabilityPager()
+
+    system_one_root = (
+        args.system_one_root
+    )
+    if not system_one_root:
+        raise RuntimeError(
+            "--system-one-root or "
+            "MADO_SYSTEM_ONE_ROOT is required "
+            "for --pager system-one"
+        )
+
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        / "scripts"
+        / "system_one_capability_bridge.mjs"
+    )
+    if not script.is_file():
+        raise RuntimeError(
+            "System One bridge script "
+            f"not found: {script}"
+        )
+
+    return SystemOnePagerBridge(
+        [
+            args.node_binary,
+            str(script),
+            "--system-one-root",
+            str(
+                Path(
+                    system_one_root
+                ).resolve()
+            ),
+        ]
+    )
+
+
+def _capability_policy(
+    args: argparse.Namespace,
+) -> CapabilityPolicy:
+    defaults = CapabilityPolicy()
+    denied = tuple(
+        dict.fromkeys(
+            [
+                *defaults.denied_risk_tags,
+                *args.deny_risk,
+            ]
+        )
+    )
+    return CapabilityPolicy(
+        min_confidence=(
+            args.min_confidence
+        ),
+        max_cost_class=(
+            args.max_cost
+        ),
+        denied_risk_tags=denied,
+    )
 
 
 def _session_manager(
@@ -795,6 +969,54 @@ def main(
             )
             return 0
 
+    if args.command == "capability":
+        manager = CapabilityManager(store)
+
+        if args.capability_command == "import":
+            _print_json(
+                manager.import_registry(
+                    args.path
+                )
+            )
+            return 0
+
+        if args.capability_command == "list":
+            _print_json(
+                [
+                    capability.to_dict()
+                    for capability
+                    in manager.list_capabilities()
+                ]
+            )
+            return 0
+
+        if args.capability_command == "resolve":
+            _print_json(
+                manager.resolve(
+                    args.worker_id,
+                    args.request,
+                    pager=(
+                        _capability_pager(
+                            args
+                        )
+                    ),
+                    policy=(
+                        _capability_policy(
+                            args
+                        )
+                    ),
+                )
+            )
+            return 0
+
+        if args.capability_command == "bindings":
+            _print_json(
+                manager.list_bindings(
+                    args.worker
+                )
+            )
+            return 0
+
     if args.command == "operator":
         manager = OperatorManager(store)
 
@@ -885,6 +1107,28 @@ def main(
             )
             return 0
 
+        if args.operator_command == "capability":
+            _print_json(
+                manager.resolve_capability(
+                    args.operator_id,
+                    args.role,
+                    pager=(
+                        _capability_pager(
+                            args
+                        )
+                    ),
+                    policy=(
+                        _capability_policy(
+                            args
+                        )
+                    ),
+                    request_text=(
+                        args.request
+                    ),
+                )
+            )
+            return 0
+
         if args.operator_command == "verdict":
             _print_json(
                 manager.verdict(
@@ -908,6 +1152,9 @@ def main(
         )
         snapshot["operators"] = (
             OperatorManager(store).summary()
+        )
+        snapshot["capabilities"] = (
+            CapabilityManager(store).summary()
         )
         _print_json(snapshot)
         return 0
