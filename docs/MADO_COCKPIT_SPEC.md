@@ -99,6 +99,27 @@ Workspace metadata includes:
 - base ref
 - lifecycle status
 
+### Agent Session
+
+A durable conversation binding between a Worker, its Workspace, and an external agent provider.
+
+MCC-M0.2 stores:
+
+- Cockpit session ID
+- worker ID
+- workspace ID
+- provider
+- optional model override
+- external provider session/thread ID
+- lifecycle status
+- completed turn count
+- last exit code
+- last assistant message
+- last raw trace path
+- last error
+
+The external provider identity is never assumed from a successful exit code alone. For Codex resume turns, Cockpit verifies that the emitted thread ID matches the previously stored thread ID.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -258,6 +279,12 @@ Initial canonical event types:
 - workspace.created
 - workspace.removed
 - workspace.merged
+- session.created
+- session.started
+- session.turn.started
+- session.turn.completed
+- session.failed
+- session.stopped
 - capability.requested
 - capability.resolved
 - task.assigned
@@ -276,6 +303,10 @@ Initial canonical event types:
 │  ├─ missions/
 │  ├─ workers/
 │  ├─ workspaces/
+│  ├─ sessions/
+│  │  └─ <session-id>/
+│  │     ├─ session.json
+│  │     └─ traces/
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -323,7 +354,7 @@ Golden fixture:
 
 The fixture writes independent uncommitted files into Builder and QA worktrees and verifies that neither workspace sees the other's file.
 
-### MCC-M0.2 Agent Session Adapter
+### MCC-M0.2 Agent Session Adapter ✅
 
 First provider: Codex CLI.
 
@@ -337,7 +368,83 @@ class AgentProvider:
     def stop(self): ...
 ```
 
-The first real target is to start a Codex session inside a Worktree Worker rather than in the root repository.
+Delivered:
+
+- `AgentSession` domain model
+- provider protocol
+- injectable command runner
+- Codex CLI provider
+- turn-based Session Manager
+- session persistence
+- per-turn JSONL/stderr traces
+- session lifecycle events
+- CLI start/send/list/status/stop commands
+- workspace ownership guard
+- retry after failed session
+- resume continuity validation
+
+Codex command strategy:
+
+```text
+first turn:
+codex exec --json
+  -c sandbox_mode="workspace-write"
+  -c approval_policy="never"
+  <PROMPT>
+
+follow-up:
+codex exec --json
+  -c sandbox_mode="workspace-write"
+  -c approval_policy="never"
+  resume <THREAD_ID> <PROMPT>
+```
+
+The subprocess working directory is always the assigned worker worktree.
+
+MCC-M0.2 treats Codex as a **durable conversation with turn-scoped processes**, not as a persistent PTY. Between turns there is no child process to keep alive.
+
+`stop` therefore closes the Cockpit session locally. It must not claim that it can interrupt an already-running turn.
+
+### Resume continuity contract
+
+A follow-up succeeds only when all of the following hold:
+
+```text
+process exit code == 0
+thread.started exists
+reported thread_id == stored external_session_id
+```
+
+If Codex returns a different thread ID, the session enters `failed` rather than silently accepting a fresh conversation.
+
+### Workspace ownership contract
+
+One ready worktree may have at most one session whose state is:
+
+```text
+active
+running
+```
+
+Stopped or failed sessions do not permanently lock the workspace. A replacement session receives a fresh Cockpit session ID.
+
+### M0.2 golden fixture
+
+```text
+Worker
+  ↓
+Worktree
+  ↓
+Codex start fixture
+  ↓ thread-123
+Codex resume fixture
+  ↓ thread-123
+Session active / turn_count=2
+```
+
+Additional negative fixtures verify missing thread IDs and thread drift.
+
+CI uses an injected fake command runner. It never calls the real Codex service and consumes no model quota.
 
 ### MCC-M0.3 Evidence Return
 
