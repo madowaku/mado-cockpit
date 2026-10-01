@@ -63,6 +63,27 @@ class Workspace:
 
 
 @dataclass(slots=True)
+class AgentSession:
+    id: str
+    worker_id: str
+    workspace_id: str
+    provider: str
+    model: str | None = None
+    external_session_id: str | None = None
+    status: str = "created"
+    turn_count: int = 0
+    last_exit_code: int | None = None
+    last_message: str | None = None
+    last_trace: str | None = None
+    last_error: str | None = None
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Event:
     type: str
     subject: dict[str, Any]
