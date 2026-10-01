@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Mapping
+from uuid import uuid4
 
 from .models import AgentSession
 from .providers import AgentProvider, CodexCLIProvider
@@ -39,10 +40,14 @@ class SessionManager:
             )
         )
         self._require_workspace_ready(workspace)
+        self._require_workspace_available(
+            str(workspace["id"])
+        )
 
         provider = self._provider(provider_name)
         session_id = (
-            f"{workspace['id']}-{provider_name}"
+            f"{workspace['id']}-{provider_name}-"
+            f"{uuid4().hex[:8]}"
         )
         session = AgentSession(
             id=session_id,
@@ -302,6 +307,14 @@ class SessionManager:
         session_id: str,
     ) -> dict[str, object]:
         session = self.store.get_session(session_id)
+        if session["status"] == "running":
+            raise RuntimeError(
+                "MCC-M0.2 cannot interrupt a running "
+                "turn; wait for the turn to finish"
+            )
+        if session["status"] == "stopped":
+            return session
+
         provider = self._provider(
             str(session["provider"])
         )
@@ -332,6 +345,23 @@ class SessionManager:
             raise RuntimeError(
                 f"Unknown agent provider: {name}"
             ) from exc
+
+    def _require_workspace_available(
+        self,
+        workspace_id: str,
+    ) -> None:
+        occupied = [
+            session
+            for session in self.store.list_sessions()
+            if session["workspace_id"] == workspace_id
+            and session["status"]
+            in {"active", "running"}
+        ]
+        if occupied:
+            raise RuntimeError(
+                "Workspace already has an active "
+                f"session: {workspace_id}"
+            )
 
     @staticmethod
     def _require_workspace_ready(
