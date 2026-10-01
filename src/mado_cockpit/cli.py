@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .evidence import EvidenceManager
+from .handoffs import HandoffManager
 from .models import Mission, Project, Worker
 from .providers import CodexCLIProvider
 from .sessions import SessionManager
@@ -293,6 +294,56 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_inspect.add_argument("bundle_id")
 
+    handoff = sub.add_parser(
+        "handoff",
+        help="Builder to QA handoff operations",
+    )
+    handoff_sub = handoff.add_subparsers(
+        dest="handoff_command",
+        required=True,
+    )
+
+    handoff_create = handoff_sub.add_parser(
+        "create",
+        help="Create an immutable handoff for QA",
+    )
+    handoff_create.add_argument("source_task_id")
+    handoff_create.add_argument("qa_worker_id")
+
+    handoff_sub.add_parser(
+        "list",
+        help="List handoffs",
+    )
+
+    handoff_inspect = handoff_sub.add_parser(
+        "inspect",
+        help="Inspect a handoff",
+    )
+    handoff_inspect.add_argument("handoff_id")
+
+    handoff_verdict = handoff_sub.add_parser(
+        "verdict",
+        help="Resolve a handoff from a QA result",
+    )
+    handoff_verdict.add_argument("handoff_id")
+    handoff_verdict.add_argument(
+        "--qa-result",
+        required=True,
+    )
+    handoff_verdict.add_argument(
+        "--verdict",
+        required=True,
+        choices=[
+            "pass",
+            "needs_fix",
+            "blocked",
+        ],
+    )
+    handoff_verdict.add_argument(
+        "--summary",
+        required=True,
+    )
+
     sub.add_parser(
         "status",
         help="Show cockpit status",
@@ -564,10 +615,48 @@ def main(
             )
             return 0
 
+    if args.command == "handoff":
+        manager = HandoffManager(store)
+
+        if args.handoff_command == "create":
+            _print_json(
+                manager.create(
+                    args.source_task_id,
+                    args.qa_worker_id,
+                )
+            )
+            return 0
+
+        if args.handoff_command == "list":
+            _print_json(manager.list())
+            return 0
+
+        if args.handoff_command == "inspect":
+            _print_json(
+                manager.inspect(
+                    args.handoff_id
+                )
+            )
+            return 0
+
+        if args.handoff_command == "verdict":
+            _print_json(
+                manager.submit_verdict(
+                    args.handoff_id,
+                    args.qa_result,
+                    verdict=args.verdict,
+                    summary=args.summary,
+                )
+            )
+            return 0
+
     if args.command == "status":
         snapshot = store.snapshot()
         snapshot["evidence"] = (
             EvidenceManager(store).summary()
+        )
+        snapshot["handoffs"] = (
+            HandoffManager(store).summary()
         )
         _print_json(snapshot)
         return 0
