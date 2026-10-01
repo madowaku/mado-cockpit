@@ -197,6 +197,82 @@ Supported verdicts:
 
 The verdict records the source snapshot digest that QA actually reviewed.
 
+### Capability Descriptor
+
+MCC-M0.6 mirrors the public MADO SYSTEM ONE capability descriptor contract.
+
+A capability records:
+
+- id
+- kind
+- name
+- short/full description
+- instructions reference
+- availability
+- prerequisites
+- risk tags
+- cost class
+- metadata
+
+Supported kinds match System One:
+
+```text
+skill
+native_tool
+plugin
+mcp
+cli
+harness
+adapter
+browser
+computer_use
+```
+
+### Capability Request
+
+A Worker-scoped request describing the ability needed for a concrete task.
+
+It records:
+
+- request ID
+- worker ID
+- natural-language need
+- trace ID
+- metadata such as Operator, role, task, and mission
+
+### Capability Suggestion
+
+The advisory result returned by the Pager.
+
+It mirrors System One:
+
+- suggested capability
+- confidence
+- alternatives
+- reason codes
+- `advisoryOnly = true`
+- wide trace ID
+- optional deep trace ID
+
+### Capability Resolution
+
+Cockpit's policy result after reviewing the advisory suggestion.
+
+It records:
+
+- request ID
+- worker ID
+- resolved/unresolved/pager-error status
+- selected capability
+- original suggestion
+- policy reasons
+
+### Capability Binding
+
+A durable Worker-to-capability binding created only after Cockpit policy permits the candidate.
+
+Bindings are the execution boundary consumed by Operator launch.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -293,21 +369,34 @@ Branch deletion is explicit. Cleanup can remove only the linked worktree, or rem
 
 ## Capability model
 
-Workers receive only the capabilities required by their mission.
+Workers receive only capabilities explicitly resolved and bound for their task.
 
 ```text
-Mission
+Mission / Task / Worker
   ↓
-Capability Requirements
+Capability Request
   ↓
-Capability Pager
+MADO SYSTEM ONE Capability Pager
   ↓
-Policy / Cost / Availability
+advisory suggestion
   ↓
-Resolved Capability Set
+Cockpit Policy Gate
+  ├─ availability
+  ├─ confidence
+  ├─ cost class
+  ├─ risk tags
+  └─ prerequisites
+  ↓
+Capability Resolution
+  ↓
+Capability Binding
   ↓
 Worker
 ```
+
+MADO SYSTEM ONE recommends. MADO Cockpit authorizes.
+
+The recommendation layer and the execution-permission layer intentionally remain separate.
 
 ## Evidence model
 
@@ -364,6 +453,8 @@ Initial canonical event types:
 - session.stopped
 - capability.requested
 - capability.resolved
+- capability.rejected
+- capability.bound
 - task.assigned
 - result.submitted
 - evidence.created
@@ -384,6 +475,7 @@ Initial canonical event types:
 - operator.completed
 - operator.blocked
 - operator.failed
+- operator.capability.resolved
 - gate.requested
 - gate.resolved
 
@@ -417,6 +509,11 @@ Initial canonical event types:
 │  │  └─ <operator-id>/
 │  │     ├─ plan.json
 │  │     └─ state.json
+│  ├─ capabilities/
+│  │  ├─ registry.json
+│  │  ├─ requests/
+│  │  ├─ resolutions/
+│  │  └─ bindings/
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -1022,9 +1119,260 @@ operator stop
 
 The session fixtures inject a fake provider, so CI does not require Codex authentication or consume model quota.
 
-### MCC-M0.6 Capability Pager Bridge
+### MCC-M0.6 Capability Pager Bridge ✅
 
-Connect worker needs to MADO SYSTEM ONE capability resolution.
+MCC-M0.6 connects Worker needs to MADO SYSTEM ONE-compatible capability resolution while preserving Cockpit authority over execution.
+
+Delivered:
+
+- `CapabilityDescriptor`
+- `CapabilityRequest`
+- `CapabilitySuggestion`
+- `CapabilityResolution`
+- `CapabilityBinding`
+- System One-compatible registry import
+- deterministic zero-quota Pager
+- subprocess JSON Pager protocol
+- real local System One resolver bridge
+- Cockpit confidence/cost/risk/prerequisite policy gate
+- safe alternative fallback
+- unresolved fail-closed path
+- persistent requests/resolutions/bindings
+- Operator capability resolution
+- Operator launch binding gate
+- bound capability injection into Worker prompts
+- capability lifecycle events
+- CLI import/list/resolve/bindings surface
+- Operator capability CLI surface
+- zero-quota golden fixtures
+
+### System One contract alignment
+
+Cockpit accepts the descriptor vocabulary already exported by `mado-system-one/src/capability/types.ts`:
+
+```text
+CapabilityKind
+CapabilityAvailability
+CapabilityDescriptor
+CapabilityResolutionInput
+CapabilitySuggestion
+```
+
+Registry import accepts the System One camelCase JSON form such as:
+
+```json
+{
+  "id": "github",
+  "kind": "plugin",
+  "name": "GitHub",
+  "shortDescription": "Inspect repositories.",
+  "availability": "available",
+  "riskTags": [],
+  "costClass": "low"
+}
+```
+
+Cockpit normalizes this into its persistent snake_case representation, then converts back to the public System One shape when crossing the Node bridge.
+
+### Advisory authority boundary
+
+System One's `CapabilitySuggestion` remains advisory.
+
+Cockpit requires:
+
+```text
+advisoryOnly == true
+confidence >= policy minimum
+candidate availability == available
+candidate cost <= max cost
+candidate risk tags do not violate policy
+candidate prerequisites are available
+```
+
+A Pager cannot directly bind or execute a capability.
+
+### Default Cockpit policy
+
+M0.6 defaults:
+
+```text
+min_confidence = 0.40
+max_cost_class = low
+
+denied_risk_tags:
+  billing
+  production
+  publish
+  delete
+  external_message
+```
+
+This encodes the subscription/local-first posture directly into the bridge.
+
+Capabilities with unknown cost fail the default gate instead of silently being treated as cheap.
+
+### Alternative fallback
+
+System One may return:
+
+```text
+primary
+alternatives[]
+```
+
+Cockpit evaluates candidates in that advisory order.
+
+Example:
+
+```text
+System One:
+  primary = prod-deploy
+  alternatives = [qa-review]
+
+Cockpit policy:
+  prod-deploy
+    → high cost
+    → production/publish risk
+    → reject
+
+  qa-review
+    → free
+    → available
+    → allowed
+
+Resolution:
+  selected = qa-review
+  reason = selected_alternative
+```
+
+If no candidate passes, Resolution status is `unresolved` and no Binding is created.
+
+### Real System One bridge
+
+`scripts/system_one_capability_bridge.mjs` loads a locally built checkout:
+
+```text
+<MADO_SYSTEM_ONE_ROOT>/
+└─ dist/src/index.js
+```
+
+and invokes the real exported:
+
+```text
+CapabilityRegistry
+CapabilityResolver
+```
+
+The bridge uses JSON stdin/stdout:
+
+```text
+Python Cockpit
+  ↓ request + descriptors
+Node bridge
+  ↓
+local MADO SYSTEM ONE dist
+  ↓
+CapabilityResolver
+  ↓ CapabilitySuggestion
+Python Cockpit policy gate
+```
+
+The M0.6 bridge provider inside Node is deterministic and zero-quota. This deliberately tests the cross-repo resolver contract without requiring Laya, API credit, or model authentication.
+
+Future Pager providers can replace that provider without changing the Cockpit-side JSON or policy contracts.
+
+### Deterministic Pager
+
+Cockpit also includes a pure-Python deterministic Pager for normal unit tests.
+
+It returns the same advisory suggestion shape using lexical matching.
+
+It is explicitly a fixture/default Pager, not a replacement for MADO SYSTEM ONE.
+
+### Operator integration
+
+Operator can resolve a capability for either role:
+
+```text
+operator capability <operator-id> builder
+operator capability <operator-id> qa
+```
+
+The default request is compiled from:
+
+- role
+- Task objective
+- required evidence
+- deliverables
+
+Operator metadata is attached to the Capability Request for traceability.
+
+When a registry exists, Operator launch requires at least one bound capability for that role.
+
+```text
+registry absent
+  → M0.5 backward-compatible launch
+
+registry present
+  + no binding
+  → launch rejected
+
+registry present
+  + binding
+  → bound capability included in Worker prompt
+```
+
+The Worker prompt includes capability ID, name, kind, cost class, and `instructionsRef` when present.
+
+### M0.6 storage
+
+```text
+.mado/cockpit/capabilities/
+├─ registry.json
+├─ requests/
+│  └─ capreq_*.json
+├─ resolutions/
+│  └─ capres_*.json
+└─ bindings/
+   └─ capbind_*.json
+```
+
+### M0.6 golden fixtures
+
+```text
+System One camelCase registry
+  → imports into Cockpit
+
+Builder implementation request
+  → deterministic Pager
+  → codex-cli suggested
+  → policy allowed
+  → Worker binding
+
+dangerous high-cost primary
+  → policy rejects
+safe alternative
+  → selected and bound
+
+dangerous candidate only
+  → unresolved
+  → no binding
+
+System One JSON suggestion
+  → subprocess bridge contract parsed
+
+registry active + no binding
+  → Operator launch rejected
+
+binding present
+  → Operator launch allowed
+  → capability appears in Worker prompt
+
+capability lifecycle
+  → request/resolution/binding events persisted
+```
+
+The default fixture suite consumes no model quota.
 
 ### MCC-M0.7 Human Question Gate
 
