@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -17,6 +19,7 @@ _ALLOWED_VERDICTS = {
     "needs_fix",
     "blocked",
 }
+_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 class HandoffManager:
@@ -100,31 +103,81 @@ class HandoffManager:
         qa_workspace_root = Path(
             str(qa_workspace["path"])
         ).resolve()
+        source_workspace_root = Path(
+            str(source_workspace["path"])
+        ).resolve()
         snapshot_root = (
             qa_workspace_root
             / ".mado"
             / "handoffs"
             / handoff_id
+            / "snapshot"
+        )
+        snapshot_bundle = (
+            snapshot_root
             / "source_bundle"
+        )
+        snapshot_tree = (
+            snapshot_root
+            / "source_tree"
         )
 
         try:
             shutil.copytree(
                 bundle_root,
-                snapshot_root,
+                snapshot_bundle,
             )
-            source_digest = self._tree_digest(
+            bundle_digest = self._tree_digest(
                 bundle_root
             )
-            snapshot_digest = self._tree_digest(
-                snapshot_root
+            copied_bundle_digest = (
+                self._tree_digest(
+                    snapshot_bundle
+                )
             )
-            if source_digest != snapshot_digest:
+            if (
+                bundle_digest
+                != copied_bundle_digest
+            ):
                 raise RuntimeError(
-                    "Handoff snapshot digest mismatch "
-                    "during materialization"
+                    "Handoff evidence bundle digest "
+                    "mismatch during materialization"
                 )
 
+            copied_files = (
+                self._materialize_source_tree(
+                    source_workspace_root,
+                    snapshot_tree,
+                )
+            )
+            source_state = {
+                "source_workspace_id": (
+                    source_workspace["id"]
+                ),
+                "source_branch": (
+                    source_workspace["branch"]
+                ),
+                "source_head": self._git(
+                    source_workspace_root,
+                    "rev-parse",
+                    "HEAD",
+                ).strip(),
+                "file_count": copied_files,
+                "bundle_sha256": (
+                    bundle_digest
+                ),
+            }
+            self._write_json(
+                snapshot_root
+                / "source_state.json",
+                source_state,
+            )
+
+            snapshot_digest = (
+                self._tree_digest(
+                    snapshot_root
+                )
+            )
             relative_snapshot = str(
                 snapshot_root.relative_to(
                     qa_workspace_root
@@ -176,9 +229,10 @@ class HandoffManager:
                     "Independently validate handoff "
                     f"{handoff_id} for source task "
                     f"{source_task_id}. Review the "
-                    "materialized source bundle at "
-                    f"{relative_snapshot} and return "
-                    "a QA report."
+                    "materialized handoff snapshot at "
+                    f"{relative_snapshot}. Review both "
+                    "source_bundle and source_tree, then "
+                    "return a QA report."
                 ),
                 required_evidence=[
                     "qa_report",
@@ -186,7 +240,7 @@ class HandoffManager:
                 constraints=[
                     (
                         "Do not modify the materialized "
-                        "handoff source bundle."
+                        "handoff snapshot."
                     ),
                     (
                         "Review independently from the "
@@ -532,6 +586,9 @@ class HandoffManager:
         self,
         handoff_id: str,
     ) -> dict[str, Any]:
+        self._validate_handoff_id(
+            handoff_id
+        )
         path = (
             self.handoffs_dir
             / handoff_id
@@ -547,6 +604,9 @@ class HandoffManager:
         self,
         handoff_id: str,
     ) -> dict[str, Any]:
+        self._validate_handoff_id(
+            handoff_id
+        )
         path = (
             self.handoffs_dir
             / handoff_id
@@ -558,6 +618,98 @@ class HandoffManager:
                 f"{handoff_id}"
             )
         return self._read_json(path)
+
+    @staticmethod
+    def _validate_handoff_id(
+        handoff_id: str,
+    ) -> None:
+        if not _SAFE_ID.fullmatch(
+            handoff_id
+        ):
+            raise RuntimeError(
+                "Invalid handoff id"
+            )
+
+    @staticmethod
+    def _git(
+        cwd: Path,
+        *args: str,
+    ) -> str:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(cwd),
+                *args,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            detail = (
+                result.stderr.strip()
+                or result.stdout.strip()
+            )
+            raise RuntimeError(
+                f"git {' '.join(args)} failed: "
+                f"{detail}"
+            )
+        return result.stdout
+
+    @classmethod
+    def _materialize_source_tree(
+        cls,
+        source_root: Path,
+        target_root: Path,
+    ) -> int:
+        payload = cls._git(
+            source_root,
+            "ls-files",
+            "-co",
+            "--exclude-standard",
+            "-z",
+        )
+        relative_paths = [
+            value
+            for value in payload.split("\0")
+            if value
+        ]
+        copied = 0
+
+        for relative_text in relative_paths:
+            relative = Path(
+                relative_text
+            )
+            source = (
+                source_root / relative
+            ).resolve()
+            try:
+                source.relative_to(
+                    source_root
+                )
+            except ValueError as exc:
+                raise RuntimeError(
+                    "Source tree entry escapes "
+                    "the worker workspace"
+                ) from exc
+
+            if not source.is_file():
+                continue
+
+            target = (
+                target_root / relative
+            )
+            target.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+            shutil.copy2(
+                source,
+                target,
+            )
+            copied += 1
+
+        return copied
 
     @staticmethod
     def _validate_workers(
