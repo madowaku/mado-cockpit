@@ -423,6 +423,92 @@ class EvidenceManager:
             "bundle": bundle.to_dict(),
         }
 
+    def get_result(
+        self,
+        result_id: str,
+    ) -> dict[str, Any]:
+        _validate_identifier(
+            result_id,
+            label="Result id",
+        )
+        if not self.results_dir.exists():
+            raise RuntimeError(
+                f"Result not found: {result_id}"
+            )
+
+        matches = list(
+            self.results_dir.glob(
+                f"*/{result_id}.json"
+            )
+        )
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"Result not found: {result_id}"
+            )
+        return self._read_json(matches[0])
+
+    def latest_ready_result(
+        self,
+        task_id: str,
+    ) -> dict[str, Any]:
+        candidates = [
+            result
+            for result in self.list_results(task_id)
+            if result.get("readiness")
+            == "ready_for_qa"
+        ]
+        if not candidates:
+            raise RuntimeError(
+                "No ready_for_qa result for task: "
+                f"{task_id}"
+            )
+        return max(
+            candidates,
+            key=lambda result: str(
+                result.get("submitted_at", "")
+            ),
+        )
+
+    def bundle_root(
+        self,
+        bundle_id: str,
+    ) -> Path:
+        _validate_identifier(
+            bundle_id,
+            label="Bundle id",
+        )
+        if not self.evidence_dir.exists():
+            raise RuntimeError(
+                f"Evidence bundle not found: {bundle_id}"
+            )
+        matches = list(
+            self.evidence_dir.glob(
+                f"*/{bundle_id}"
+            )
+        )
+        if (
+            len(matches) != 1
+            or not matches[0].is_dir()
+        ):
+            raise RuntimeError(
+                f"Evidence bundle not found: {bundle_id}"
+            )
+        return matches[0]
+
+    def set_task_status(
+        self,
+        task_id: str,
+        status: str,
+    ) -> dict[str, Any]:
+        task = self.get_task(task_id)
+        task["status"] = status
+        task["updated_at"] = utc_now()
+        self._write_json(
+            self.tasks_dir / f"{task_id}.json",
+            task,
+        )
+        return task
+
     def list_results(
         self,
         task_id: str | None = None,
