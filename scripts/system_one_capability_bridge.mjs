@@ -126,14 +126,27 @@ class DeterministicBridgeProvider {
 
         if (id.startsWith("fit:")) {
           const capabilityId = id.slice("fit:".length);
-          const matchingLine = request.state
-            .split("\n")
-            .find((line) => line.startsWith(`[${capabilityId}]`));
-          const score = matchingLine
+          const lines = request.state.split("\n");
+          const start = lines.findIndex((line) =>
+            line.startsWith(`[${capabilityId}]`),
+          );
+          const block = [];
+          if (start >= 0) {
+            for (let index = start; index < lines.length; index += 1) {
+              if (
+                index > start &&
+                lines[index].startsWith("[")
+              ) {
+                break;
+              }
+              block.push(lines[index]);
+            }
+          }
+          const score = block.length > 0
             ? overlapScore(userRequest, {
                 id: capabilityId,
-                label: matchingLine,
-                description: request.state,
+                label: block[0],
+                description: block.slice(1).join(" "),
               })
             : 0;
           results[id] = {
