@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+from .evidence import EvidenceManager
 from .models import Mission, Project, Worker
 from .providers import CodexCLIProvider
 from .sessions import SessionManager
@@ -171,6 +172,127 @@ def build_parser() -> argparse.ArgumentParser:
         help="List agent sessions",
     )
 
+    task = sub.add_parser(
+        "task",
+        help="Task contract operations",
+    )
+    task_sub = task.add_subparsers(
+        dest="task_command",
+        required=True,
+    )
+
+    task_create = task_sub.add_parser(
+        "create",
+        help="Assign a task contract to a worker",
+    )
+    task_create.add_argument("task_id")
+    task_create.add_argument("worker_id")
+    task_create.add_argument("objective")
+    task_create.add_argument(
+        "--require",
+        action="append",
+        default=[],
+        dest="required_evidence",
+    )
+    task_create.add_argument(
+        "--constraint",
+        action="append",
+        default=[],
+    )
+    task_create.add_argument(
+        "--deliverable",
+        action="append",
+        default=[],
+    )
+    task_create.add_argument(
+        "--done-when",
+        action="append",
+        default=[],
+    )
+
+    task_sub.add_parser(
+        "list",
+        help="List task contracts",
+    )
+
+    task_show = task_sub.add_parser(
+        "show",
+        help="Inspect a task contract",
+    )
+    task_show.add_argument("task_id")
+
+    result = sub.add_parser(
+        "result",
+        help="Result contract operations",
+    )
+    result_sub = result.add_subparsers(
+        dest="result_command",
+        required=True,
+    )
+
+    result_submit = result_sub.add_parser(
+        "submit",
+        help="Submit a result and build its evidence bundle",
+    )
+    result_submit.add_argument("task_id")
+    result_submit.add_argument(
+        "--status",
+        required=True,
+        choices=[
+            "completed",
+            "blocked",
+            "failed",
+        ],
+    )
+    result_submit.add_argument(
+        "--summary",
+        required=True,
+    )
+    result_submit.add_argument("--session")
+    result_submit.add_argument(
+        "--evidence",
+        action="append",
+        default=[],
+        metavar="KIND=PATH",
+    )
+    result_submit.add_argument(
+        "--change",
+        action="append",
+        default=[],
+    )
+    result_submit.add_argument(
+        "--risk",
+        action="append",
+        default=[],
+    )
+
+    result_list = result_sub.add_parser(
+        "list",
+        help="List result contracts",
+    )
+    result_list.add_argument("--task")
+
+    evidence = sub.add_parser(
+        "evidence",
+        help="Evidence bundle operations",
+    )
+    evidence_sub = evidence.add_subparsers(
+        dest="evidence_command",
+        required=True,
+    )
+
+    evidence_list = evidence_sub.add_parser(
+        "list",
+        help="List evidence bundles",
+    )
+    evidence_list.add_argument("--task")
+
+    evidence_inspect = evidence_sub.add_parser(
+        "inspect",
+        help="Inspect an evidence bundle",
+    )
+    evidence_inspect.add_argument("bundle_id")
+
     sub.add_parser(
         "status",
         help="Show cockpit status",
@@ -190,6 +312,33 @@ def _session_manager(
                 executable=codex_binary,
             )
         },
+    )
+
+
+def _parse_evidence_specs(
+    specs: list[str],
+) -> list[tuple[str, str]]:
+    result: list[tuple[str, str]] = []
+    for spec in specs:
+        kind, separator, path = spec.partition("=")
+        if not separator or not kind.strip() or not path.strip():
+            raise RuntimeError(
+                "Evidence must use KIND=PATH format: "
+                f"{spec}"
+            )
+        result.append(
+            (kind.strip(), path.strip())
+        )
+    return result
+
+
+def _print_json(payload: object) -> None:
+    print(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+        )
     )
 
 
@@ -253,66 +402,41 @@ def main(
         manager = WorktreeManager(store)
 
         if args.workspace_command == "create":
-            created = manager.create(
-                args.worker_id,
-                base_ref=args.base_ref,
-            )
-            print(
-                json.dumps(
-                    created.to_dict(),
-                    ensure_ascii=False,
-                    indent=2,
-                )
+            _print_json(
+                manager.create(
+                    args.worker_id,
+                    base_ref=args.base_ref,
+                ).to_dict()
             )
             return 0
 
         if args.workspace_command == "list":
-            print(
-                json.dumps(
-                    store.list_workspaces(),
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            )
+            _print_json(store.list_workspaces())
             return 0
 
         if args.workspace_command == "status":
-            print(
-                json.dumps(
-                    manager.status(
-                        args.workspace_id
-                    ),
-                    ensure_ascii=False,
-                    indent=2,
+            _print_json(
+                manager.status(
+                    args.workspace_id
                 )
             )
             return 0
 
         if args.workspace_command == "remove":
-            print(
-                json.dumps(
-                    manager.remove(
-                        args.workspace_id,
-                        delete_branch=(
-                            args.delete_branch
-                        ),
-                        force=args.force,
+            _print_json(
+                manager.remove(
+                    args.workspace_id,
+                    delete_branch=(
+                        args.delete_branch
                     ),
-                    ensure_ascii=False,
-                    indent=2,
+                    force=args.force,
                 )
             )
             return 0
 
     if args.command == "session":
         if args.session_command == "list":
-            print(
-                json.dumps(
-                    store.list_sessions(),
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            )
+            _print_json(store.list_sessions())
             return 0
 
         if args.session_command == "start":
@@ -320,17 +444,12 @@ def main(
                 store,
                 codex_binary=args.codex_binary,
             )
-            result = manager.start(
-                args.worker_id,
-                args.prompt,
-                provider_name=args.provider,
-                model=args.model,
-            )
-            print(
-                json.dumps(
-                    result,
-                    ensure_ascii=False,
-                    indent=2,
+            _print_json(
+                manager.start(
+                    args.worker_id,
+                    args.prompt,
+                    provider_name=args.provider,
+                    model=args.model,
                 )
             )
             return 0
@@ -340,15 +459,10 @@ def main(
                 store,
                 codex_binary=args.codex_binary,
             )
-            result = manager.send(
-                args.session_id,
-                args.prompt,
-            )
-            print(
-                json.dumps(
-                    result,
-                    ensure_ascii=False,
-                    indent=2,
+            _print_json(
+                manager.send(
+                    args.session_id,
+                    args.prompt,
                 )
             )
             return 0
@@ -356,37 +470,106 @@ def main(
         manager = _session_manager(store)
 
         if args.session_command == "status":
-            print(
-                json.dumps(
-                    manager.status(
-                        args.session_id
-                    ),
-                    ensure_ascii=False,
-                    indent=2,
+            _print_json(
+                manager.status(
+                    args.session_id
                 )
             )
             return 0
 
         if args.session_command == "stop":
-            print(
-                json.dumps(
-                    manager.stop(
-                        args.session_id
+            _print_json(
+                manager.stop(
+                    args.session_id
+                )
+            )
+            return 0
+
+    if args.command == "task":
+        manager = EvidenceManager(store)
+
+        if args.task_command == "create":
+            _print_json(
+                manager.create_task(
+                    args.task_id,
+                    args.worker_id,
+                    args.objective,
+                    required_evidence=(
+                        args.required_evidence
                     ),
-                    ensure_ascii=False,
-                    indent=2,
+                    constraints=args.constraint,
+                    deliverables=args.deliverable,
+                    done_when=args.done_when,
+                )
+            )
+            return 0
+
+        if args.task_command == "list":
+            _print_json(manager.list_tasks())
+            return 0
+
+        if args.task_command == "show":
+            _print_json(
+                manager.get_task(
+                    args.task_id
+                )
+            )
+            return 0
+
+    if args.command == "result":
+        manager = EvidenceManager(store)
+
+        if args.result_command == "submit":
+            _print_json(
+                manager.submit_result(
+                    args.task_id,
+                    status=args.status,
+                    summary=args.summary,
+                    evidence_files=(
+                        _parse_evidence_specs(
+                            args.evidence
+                        )
+                    ),
+                    changes=args.change,
+                    risks=args.risk,
+                    session_id=args.session,
+                )
+            )
+            return 0
+
+        if args.result_command == "list":
+            _print_json(
+                manager.list_results(
+                    args.task
+                )
+            )
+            return 0
+
+    if args.command == "evidence":
+        manager = EvidenceManager(store)
+
+        if args.evidence_command == "list":
+            _print_json(
+                manager.list_bundles(
+                    args.task
+                )
+            )
+            return 0
+
+        if args.evidence_command == "inspect":
+            _print_json(
+                manager.inspect_bundle(
+                    args.bundle_id
                 )
             )
             return 0
 
     if args.command == "status":
-        print(
-            json.dumps(
-                store.snapshot(),
-                ensure_ascii=False,
-                indent=2,
-            )
+        snapshot = store.snapshot()
+        snapshot["evidence"] = (
+            EvidenceManager(store).summary()
         )
+        _print_json(snapshot)
         return 0
 
     raise AssertionError("unreachable")
