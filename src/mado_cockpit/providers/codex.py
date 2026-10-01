@@ -57,17 +57,21 @@ class CodexCLIProvider(AgentProvider):
         self,
         session: dict[str, object],
     ) -> dict[str, object]:
+        process_running: bool | None = False
+        if session.get("status") == "running":
+            process_running = None
+
         return {
             "provider": self.name,
             "transport": "turn-based",
             "external_session_id": session.get(
                 "external_session_id"
             ),
-            "process_running": False,
+            "process_running": process_running,
             "note": (
-                "codex exec runs one blocking turn at a "
-                "time; conversation continuity is kept "
-                "by the external session id"
+                "MCC-M0.2 records turn state but does not "
+                "hold a persistent Codex process between "
+                "turns"
             ),
         }
 
