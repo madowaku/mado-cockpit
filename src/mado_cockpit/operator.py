@@ -565,29 +565,65 @@ class OperatorManager:
             task,
             role=role,
         )
-        session = sessions.start(
-            worker_id,
-            prompt,
-            provider_name=str(
-                plan["provider"]
-            ),
-            model=model,
+
+        state = self._state(
+            operator_id
         )
+        existing_id = state.get(
+            state_field
+        )
+        existing = (
+            self._session_or_none(
+                existing_id
+            )
+            if existing_id
+            else None
+        )
+
+        if (
+            existing is not None
+            and existing["status"]
+            == "active"
+        ):
+            session = sessions.send(
+                str(existing["id"]),
+                prompt,
+            )
+            event_type = (
+                "operator.session.resumed"
+            )
+            action = (
+                f"{role}_session_resumed"
+            )
+        else:
+            session = sessions.start(
+                worker_id,
+                prompt,
+                provider_name=str(
+                    plan["provider"]
+                ),
+                model=model,
+            )
+            event_type = (
+                "operator.session.started"
+            )
+            action = (
+                f"{role}_session_started"
+            )
+
         self._update_state(
             operator_id,
             **{
                 state_field: str(
                     session["id"]
                 ),
-                "last_action": (
-                    f"{role}_session_started"
-                ),
+                "last_action": action,
                 "last_error": None,
             },
         )
         self._event(
             plan,
-            "operator.session.started",
+            event_type,
             {
                 "operator_id": (
                     operator_id
