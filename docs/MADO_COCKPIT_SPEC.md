@@ -170,6 +170,33 @@ A frozen package containing:
 
 Evidence validation asks only whether the Task Contract's required evidence kinds are present. Work outcome and evidence completeness remain separate axes.
 
+### Handoff Contract
+
+An immutable transfer record from a source Builder task/result/evidence bundle to a separate QA worker and workspace.
+
+It records:
+
+- source task/result/bundle IDs
+- source worker/workspace IDs
+- QA worker/workspace IDs
+- auto-created QA task ID
+- materialized snapshot path
+- snapshot SHA-256
+
+The immutable contract is stored separately from mutable handoff status.
+
+### QA Verdict
+
+A final QA decision backed by a QA Result Contract with validated `qa_report` evidence.
+
+Supported verdicts:
+
+- `pass`
+- `needs_fix`
+- `blocked`
+
+The verdict records the source snapshot digest that QA actually reviewed.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -343,6 +370,9 @@ Initial canonical event types:
 - evidence.validated
 - evidence.incomplete
 - handoff.created
+- handoff.materialized
+- qa.verdict
+- handoff.resolved
 - gate.requested
 - gate.resolved
 
@@ -367,6 +397,11 @@ Initial canonical event types:
 │  │     ├─ task.json
 │  │     ├─ result.json
 │  │     └─ files/
+│  ├─ handoffs/
+│  │  └─ <handoff-id>/
+│  │     ├─ handoff.json
+│  │     ├─ status.json
+│  │     └─ verdict.json
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -656,23 +691,144 @@ matching session trace
 
 MCC-M0.3 validates evidence presence, ownership, hashing, and provenance. It does not yet independently judge whether the implementation is correct. Independent validation begins in MCC-M0.4 with the QA Worker.
 
-### MCC-M0.4 Builder → QA Handoff
+### MCC-M0.4 Builder → QA Handoff ✅
 
-Complete the first production loop:
+Delivered:
+
+- `HandoffContract` domain model
+- `QAVerdict` domain model
+- Builder readiness gate
+- QA role and worker separation
+- separate QA workspace requirement
+- immutable handoff contract
+- mutable handoff status record
+- Builder Evidence Bundle snapshot
+- Builder working-tree source snapshot
+- deterministic snapshot tree SHA-256
+- auto-created QA Task Contract
+- required `qa_report` evidence
+- `pass | needs_fix | blocked` verdicts
+- source-task routing after verdict
+- handoff / QA lifecycle events
+- CLI create/list/inspect/verdict commands
+
+### Handoff preconditions
+
+A handoff may be created only when:
 
 ```text
-Builder
-  ↓
-Evidence
-  ↓
-Handoff
-  ↓
-QA
-  ↓
-QA Result
+source task status == ready_for_qa
+source result readiness == ready_for_qa
+QA worker != source worker
+QA worker role == qa
+QA mission == source mission
+QA workspace != source workspace
+source and QA workspaces are ready
 ```
 
-First dogfood target: MADO Asset Foundry / MAF-M0.3 Image QA.
+The source task moves to `qa_in_review` after handoff creation.
+
+### Review snapshot
+
+QA never receives a pointer to mutable Builder evidence alone.
+
+Cockpit materializes this snapshot inside the QA worktree:
+
+```text
+.mado/handoffs/<handoff-id>/snapshot/
+├─ source_bundle/
+│  ├─ manifest.json
+│  ├─ task.json
+│  ├─ result.json
+│  └─ files/
+├─ source_tree/
+│  └─ tracked + non-ignored untracked Builder files
+└─ source_state.json
+```
+
+`source_tree` is built from:
+
+```text
+git ls-files -co --exclude-standard
+```
+
+This captures tracked files plus non-ignored untracked files, including new implementation files that are not represented by tracked diff content alone.
+
+`source_state.json` records:
+
+- source workspace
+- source branch
+- source HEAD
+- copied file count
+- source evidence-bundle digest
+
+The entire snapshot is hashed as a deterministic tree digest. Before accepting any verdict, Cockpit recomputes the digest and rejects the verdict if QA modified the snapshot.
+
+### QA Task
+
+Handoff creation automatically assigns a new Task Contract to the QA worker.
+
+Its contract requires:
+
+```yaml
+required_evidence:
+  - qa_report
+```
+
+The QA report must be submitted through the normal Result / Evidence pipeline. This keeps QA subject to the same evidence-first rules as Builder.
+
+### Verdict contract
+
+```text
+QA result              Verdict       Source task
+------------------------------------------------
+completed + validated  pass          qa_passed
+completed + validated  needs_fix     needs_fix
+completed/blocked
+  + validated          blocked       qa_blocked
+```
+
+`pass` and `needs_fix` require a completed QA Result Contract. `blocked` accepts a completed or blocked QA Result, but still requires validated evidence.
+
+A QA result from another task or worker cannot resolve the handoff.
+
+### Immutable source vs mutable state
+
+```text
+handoff.json  immutable transfer identity
+status.json   awaiting_qa / pass / needs_fix / blocked
+verdict.json  final QA verdict and reviewed digest
+```
+
+Resolving a handoff never rewrites `handoff.json`.
+
+### M0.4 golden fixtures
+
+The fixture set verifies:
+
+```text
+Builder ready_for_qa
+  → handoff created
+  → source snapshot materialized
+  → QA task auto-created
+  → QA report submitted
+  → PASS
+  → source task qa_passed
+
+source not ready
+  → handoff rejected
+
+Builder == QA
+  → rejected
+
+QA modifies source snapshot
+  → verdict rejected
+
+QA returns needs_fix
+  → source task needs_fix
+```
+
+First dogfood target remains MADO Asset Foundry / MAF-M0.3 Image QA.
 
 ### MCC-M0.5 Operator
 
