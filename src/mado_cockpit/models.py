@@ -84,6 +84,75 @@ class AgentSession:
 
 
 @dataclass(slots=True)
+class TaskContract:
+    id: str
+    worker_id: str
+    workspace_id: str
+    objective: str
+    required_evidence: list[str] = field(default_factory=list)
+    constraints: list[str] = field(default_factory=list)
+    deliverables: list[str] = field(default_factory=list)
+    done_when: list[str] = field(default_factory=list)
+    status: str = "assigned"
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class EvidenceItem:
+    id: str
+    kind: str
+    path: str
+    sha256: str
+    size_bytes: int
+    source: str
+    description: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class EvidenceBundle:
+    id: str
+    task_id: str
+    worker_id: str
+    workspace_id: str
+    status: str
+    required_evidence: list[str]
+    missing_evidence: list[str]
+    items: list[EvidenceItem]
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class ResultContract:
+    id: str
+    task_id: str
+    worker_id: str
+    workspace_id: str
+    status: str
+    summary: str
+    evidence_bundle_id: str
+    evidence_status: str
+    readiness: str
+    missing_evidence: list[str] = field(default_factory=list)
+    changes: list[str] = field(default_factory=list)
+    risks: list[str] = field(default_factory=list)
+    session_id: str | None = None
+    submitted_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Event:
     type: str
     subject: dict[str, Any]
