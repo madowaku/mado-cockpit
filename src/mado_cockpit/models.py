@@ -46,6 +46,23 @@ class Worker:
 
 
 @dataclass(slots=True)
+class Workspace:
+    id: str
+    worker_id: str
+    mission_id: str | None
+    repo_root: str
+    path: str
+    branch: str
+    base_ref: str
+    kind: str = "git_worktree"
+    status: str = "ready"
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Event:
     type: str
     subject: dict[str, Any]
