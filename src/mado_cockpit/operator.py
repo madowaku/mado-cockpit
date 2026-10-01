@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Any, Iterable
 from uuid import uuid4
 
+from .capabilities import (
+    CapabilityManager,
+    CapabilityPager,
+    CapabilityPolicy,
+)
 from .evidence import EvidenceManager
 from .handoffs import HandoffManager
 from .models import (
@@ -44,6 +49,7 @@ class OperatorManager:
         self.store = store
         self.evidence = EvidenceManager(store)
         self.handoffs = HandoffManager(store)
+        self.capabilities = CapabilityManager(store)
         self.worktrees = WorktreeManager(store)
         self.operators_dir = (
             store.base / "operators"
@@ -562,9 +568,25 @@ class OperatorManager:
         task = self.evidence.get_task(
             task_id
         )
+        bound_capabilities = (
+            self.capabilities.get_bound_capabilities(
+                worker_id
+            )
+        )
+        if (
+            self.capabilities.list_capabilities()
+            and not bound_capabilities
+        ):
+            raise RuntimeError(
+                "Capability registry is active but "
+                f"{role} worker has no capability binding. "
+                "Resolve a capability before launch."
+            )
+
         prompt = self._task_prompt(
             task,
             role=role,
+            capabilities=bound_capabilities,
         )
 
         state = self._state(
@@ -639,6 +661,110 @@ class OperatorManager:
         return self.inspect(
             operator_id
         )
+
+    def resolve_capability(
+        self,
+        operator_id: str,
+        role: str,
+        *,
+        pager: CapabilityPager,
+        policy: CapabilityPolicy | None = None,
+        request_text: str | None = None,
+    ) -> dict[str, Any]:
+        plan = self._plan(
+            operator_id
+        )
+        role = self._normalize_role(
+            role
+        )
+
+        if role == "builder":
+            worker_id = str(
+                plan["builder_worker_id"]
+            )
+            task_id = str(
+                plan["builder_task_id"]
+            )
+        else:
+            handoff = self._current_handoff(
+                operator_id
+            )
+            worker_id = str(
+                plan["qa_worker_id"]
+            )
+            task_id = str(
+                handoff["handoff"][
+                    "qa_task_id"
+                ]
+            )
+
+        task = self.evidence.get_task(
+            task_id
+        )
+        request = (
+            request_text.strip()
+            if request_text
+            and request_text.strip()
+            else self._capability_request_text(
+                task,
+                role=role,
+            )
+        )
+        resolved = self.capabilities.resolve(
+            worker_id,
+            request,
+            pager=pager,
+            policy=policy,
+            metadata={
+                "operator_id": operator_id,
+                "role": role,
+                "task_id": task_id,
+                "mission_id": (
+                    plan["mission_id"]
+                ),
+            },
+        )
+        self._update_state(
+            operator_id,
+            last_action=(
+                f"{role}_capability_"
+                f"{resolved['resolution']['status']}"
+            ),
+            last_error=None,
+        )
+        self._event(
+            plan,
+            "operator.capability.resolved",
+            {
+                "operator_id": operator_id,
+                "role": role,
+                "worker_id": worker_id,
+                "task_id": task_id,
+                "resolution_id": (
+                    resolved[
+                        "resolution"
+                    ]["id"]
+                ),
+                "selected_capability": (
+                    resolved[
+                        "resolution"
+                    ][
+                        "selected_capability"
+                    ]
+                ),
+                "status": (
+                    resolved[
+                        "resolution"
+                    ]["status"]
+                ),
+            },
+        )
+        return {
+            "capability": resolved,
+            "operator": self.inspect(
+                operator_id
+            ),
+        }
 
     def stop(
         self,
@@ -908,6 +1034,28 @@ class OperatorManager:
                 builder_workspace
             ),
             "qa_workspace": qa_workspace,
+            "builder_capabilities": [
+                capability.to_dict()
+                for capability
+                in self.capabilities.get_bound_capabilities(
+                    str(
+                        plan[
+                            "builder_worker_id"
+                        ]
+                    )
+                )
+            ],
+            "qa_capabilities": [
+                capability.to_dict()
+                for capability
+                in self.capabilities.get_bound_capabilities(
+                    str(
+                        plan[
+                            "qa_worker_id"
+                        ]
+                    )
+                )
+            ],
             "builder_session": (
                 self._session_or_none(
                     state.get(
@@ -1046,6 +1194,7 @@ class OperatorManager:
         task: dict[str, Any],
         *,
         role: str,
+        capabilities: list[Any],
     ) -> str:
         def section(
             title: str,
@@ -1061,6 +1210,23 @@ class OperatorManager:
             )
             return f"{title}:\n{lines}"
 
+        capability_lines = []
+        for capability in capabilities:
+            line = (
+                f"[{capability.id}] "
+                f"{capability.name} "
+                f"(kind={capability.kind}, "
+                f"cost={capability.cost_class or 'unknown'})"
+            )
+            if capability.instructions_ref:
+                line += (
+                    " instructions="
+                    f"{capability.instructions_ref}"
+                )
+            capability_lines.append(
+                line
+            )
+
         return "\n\n".join(
             [
                 (
@@ -1071,6 +1237,10 @@ class OperatorManager:
                 (
                     "Objective:\n"
                     f"{task['objective']}"
+                ),
+                section(
+                    "Bound capabilities",
+                    capability_lines,
                 ),
                 section(
                     "Required evidence",
@@ -1100,9 +1270,41 @@ class OperatorManager:
                 ),
                 (
                     "Work only inside your assigned "
-                    "workspace. Leave evidence files "
-                    "inside that workspace. Do not "
-                    "claim success without evidence."
+                    "workspace. Use only capabilities "
+                    "that Cockpit bound to this worker. "
+                    "Leave evidence files inside that "
+                    "workspace. Do not claim success "
+                    "without evidence."
+                ),
+            ]
+        )
+
+    @staticmethod
+    def _capability_request_text(
+        task: dict[str, Any],
+        *,
+        role: str,
+    ) -> str:
+        return "\n".join(
+            [
+                f"Role: {role}",
+                (
+                    "Objective: "
+                    f"{task['objective']}"
+                ),
+                (
+                    "Required evidence: "
+                    + ", ".join(
+                        task[
+                            "required_evidence"
+                        ]
+                    )
+                ),
+                (
+                    "Deliverables: "
+                    + ", ".join(
+                        task["deliverables"]
+                    )
                 ),
             ]
         )
