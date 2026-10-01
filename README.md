@@ -79,6 +79,46 @@ Every evidence item is copied into the Cockpit evidence store and recorded with 
 
 Task contracts require at least one evidence kind, so evidence-first completion cannot be silently disabled.
 
+
+### MCC-M0.4 Builder → QA Handoff
+
+A `ready_for_qa` Builder task can now be handed to a **different worker with `role=qa`**.
+
+Handoff creation freezes both the Builder evidence and the reviewable working tree into the QA worktree:
+
+```text
+.mado/handoffs/<handoff-id>/snapshot/
+├─ source_bundle/
+│  ├─ manifest.json
+│  ├─ task.json
+│  ├─ result.json
+│  └─ files/
+├─ source_tree/
+│  └─ tracked + non-ignored untracked files
+└─ source_state.json
+```
+
+The whole snapshot receives a deterministic tree SHA-256. QA must not modify it, and Cockpit checks the digest again before accepting a verdict.
+
+Cockpit also creates a dedicated QA Task Contract requiring `qa_report` evidence.
+
+```text
+Builder Task
+  ↓ ready_for_qa
+Handoff snapshot
+  ↓
+QA Task
+  ↓ qa_report
+QA Result
+  ↓
+Verdict
+  ├─ pass      → source task = qa_passed
+  ├─ needs_fix → source task = needs_fix
+  └─ blocked   → source task = qa_blocked
+```
+
+Builder cannot QA its own task. QA must be a separate worker and workspace in the same mission.
+
 ## Quick start
 
 ```bash
@@ -162,6 +202,38 @@ mado-cockpit evidence list --task MCC-DEMO-BUILD
 mado-cockpit evidence inspect <BUNDLE_ID>
 ```
 
+Once the Builder task is `ready_for_qa`, create a QA worker and handoff:
+
+```bash
+mado-cockpit worker create qa \
+  --role qa \
+  --mission MCC-DEMO \
+  --provider codex
+
+mado-cockpit workspace create qa
+mado-cockpit handoff create MCC-DEMO-BUILD qa
+```
+
+The handoff response includes an auto-created `qa_task_id`. QA writes its report in its own worktree and submits it:
+
+```bash
+mado-cockpit result submit <QA_TASK_ID> \
+  --status completed \
+  --summary "Independent QA complete." \
+  --evidence qa_report=qa-report.txt
+```
+
+Resolve the handoff using the QA Result:
+
+```bash
+mado-cockpit handoff verdict <HANDOFF_ID> \
+  --qa-result <QA_RESULT_ID> \
+  --verdict pass \
+  --summary "QA accepts the Builder result."
+```
+
+Use `needs_fix` to route the source task back to Builder, or `blocked` when QA cannot complete validation.
+
 MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop` closes a turn-based session only when no turn is executing.
 
 ## Local state
@@ -187,6 +259,11 @@ MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop`
 │  │     ├─ task.json
 │  │     ├─ result.json
 │  │     └─ files/
+│  ├─ handoffs/
+│  │  └─ <handoff-id>/
+│  │     ├─ handoff.json
+│  │     ├─ status.json
+│  │     └─ verdict.json
 │  └─ events.jsonl
 └─ worktrees/
    └─ <mission>-<worker>/
@@ -226,13 +303,29 @@ task/result snapshots          → frozen in bundle
 SHA-256 / size metadata        → recorded
 ```
 
+
+## MCC-M0.4 golden fixtures
+
+The handoff fixtures verify:
+
+```text
+ready_for_qa Builder → separate QA worker
+Evidence Bundle      → immutable QA snapshot
+Builder working tree → source_tree snapshot
+QA report            → required evidence
+PASS                 → qa_passed
+NEEDS_FIX            → needs_fix
+self-review           → rejected
+snapshot mutation     → verdict rejected
+```
+
 ## Milestone path
 
 1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
 2. **MCC-M0.1 Worktree Worker** — isolated Git worktrees ✅
 3. **MCC-M0.2 Agent Session Adapter** — Codex CLI first ✅
 4. **MCC-M0.3 Evidence Return** — task/result/evidence contracts ✅
-5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop
+5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop ✅
 6. **MCC-M0.5 Operator** — agent-controlled cockpit
 7. **MCC-M0.6 Capability Pager Bridge**
 8. **MCC-M0.7 Human Question Gate**
