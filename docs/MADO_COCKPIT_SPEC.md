@@ -373,6 +373,17 @@ Initial canonical event types:
 - handoff.materialized
 - qa.verdict
 - handoff.resolved
+- operator.created
+- operator.ready
+- operator.advanced
+- operator.session.started
+- operator.session.resumed
+- operator.session.stopped
+- operator.result.submitted
+- operator.verdict.submitted
+- operator.completed
+- operator.blocked
+- operator.failed
 - gate.requested
 - gate.resolved
 
@@ -402,6 +413,10 @@ Initial canonical event types:
 │  │     ├─ handoff.json
 │  │     ├─ status.json
 │  │     └─ verdict.json
+│  ├─ operators/
+│  │  └─ <operator-id>/
+│  │     ├─ plan.json
+│  │     └─ state.json
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -830,17 +845,182 @@ QA returns needs_fix
 
 First dogfood target remains MADO Asset Foundry / MAF-M0.3 Image QA.
 
-### MCC-M0.5 Operator
+### MCC-M0.5 Operator ✅
 
-Allow a lead/operator agent to:
+MCC-M0.5 introduces a deterministic orchestration layer over M0.0 through M0.4.
 
-- create workers
-- create workspaces
-- assign tasks
-- inspect workers
-- read evidence
-- create handoffs
-- stop workers
+Delivered:
+
+- `OperatorPlan` and `OperatorState`
+- persistent Operator runs
+- Builder / QA worker provisioning
+- Builder / QA worktree provisioning
+- evidence-first Builder Task assignment
+- deterministic `advance` state machine
+- explicit Builder / QA session launch
+- active-session resume instead of duplication
+- Operator-level Result submission
+- automatic session-trace binding
+- automatic Handoff creation after Builder readiness
+- QA verdict routing
+- `needs_fix` revision loop
+- session stop support
+- Operator lifecycle events
+- CLI start/list/status/advance/launch/stop/result/verdict commands
+- fake-provider golden fixtures with no model quota use
+
+### Operator principle
+
+The Operator is a control plane, not an unconstrained autonomous agent.
+
+```text
+Operator may:
+  inspect state
+  provision known roles
+  create legal workspaces
+  assign evidence-first tasks
+  start/resume explicit agent turns
+  collect structured results
+  create Handoffs after preconditions pass
+  route QA verdicts
+
+Operator may not:
+  weaken evidence requirements
+  bypass QA separation
+  mutate Handoff evidence
+  infer PASS without a QA verdict
+  call a model from operator advance
+```
+
+### Operator storage
+
+```text
+.mado/cockpit/operators/
+└─ <operator-id>/
+   ├─ plan.json
+   └─ state.json
+```
+
+`plan.json` freezes mission intent, Builder/QA identities, Builder Task ID, provider, required evidence, and base Git ref.
+
+`state.json` tracks orchestration status, current Handoff, Builder/QA session IDs, last action, last error, and timestamps.
+
+### Operator state machine
+
+```text
+provisioning
+  ↓
+awaiting_builder
+  ├─ evidence incomplete → builder_attention
+  ├─ blocked             → blocked
+  └─ ready_for_qa
+        ↓
+     awaiting_qa
+        ├─ QA evidence incomplete → qa_attention
+        └─ QA result ready
+              ↓
+        awaiting_verdict
+          ├─ pass      → completed
+          ├─ blocked   → blocked
+          └─ needs_fix
+                ↓
+             needs_fix
+                ↓
+          Builder revision
+                ↓
+          fresh ready_for_qa
+                ↓
+          new Handoff
+```
+
+`failed`, `blocked`, and `completed` are terminal for deterministic `advance`.
+
+### Model execution boundary
+
+`operator advance` never invokes Codex or another model.
+
+Model execution only occurs through explicit launch:
+
+```text
+operator launch <id> builder
+operator launch <id> qa
+```
+
+When the role already has an active session, launch resumes the same external conversation through the M0.2 adapter. Stopped or failed sessions are replaced on the next launch.
+
+This keeps subscription or API usage visible at the invocation boundary.
+
+### Operator Result binding
+
+`operator result` resolves the correct Task from the Operator run:
+
+```text
+role=builder → Builder Task
+role=qa      → current Handoff QA Task
+```
+
+If that role has a recorded Agent Session, its latest completed trace is automatically supplied to the M0.3 Evidence pipeline. It only satisfies the contract when `session_trace` is one of the declared required evidence kinds.
+
+After Result submission, Operator immediately performs the deterministic advance step.
+
+### Revision loop
+
+A `needs_fix` verdict preserves the old Handoff:
+
+```text
+Handoff #1
+  → QA needs_fix
+  → preserved
+
+Builder Task
+  → revised Result
+  → ready_for_qa
+
+Handoff #2
+  → new immutable review snapshot
+```
+
+This produces an auditable sequence of review attempts instead of rewriting history.
+
+### M0.5 golden fixtures
+
+```text
+Operator start
+  → Builder + QA workers
+  → two isolated worktrees
+  → Builder Task
+
+Builder validated Result
+  → automatic Handoff
+  → awaiting_qa
+
+advance repeated
+  → same Handoff
+  → no duplicate review
+
+QA validated Result
+  → awaiting_verdict
+
+PASS
+  → source task qa_passed
+  → Operator completed
+
+NEEDS_FIX
+  → source task needs_fix
+  → Builder revision
+  → new Handoff
+
+active Builder session
+  → second launch resumes same session
+
+session_trace required
+  → latest Operator session trace is bundled
+
+operator stop
+  → stored session becomes stopped
+```
+
+The session fixtures inject a fake provider, so CI does not require Codex authentication or consume model quota.
 
 ### MCC-M0.6 Capability Pager Bridge
 
