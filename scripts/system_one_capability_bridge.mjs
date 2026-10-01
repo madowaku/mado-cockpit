@@ -86,6 +86,29 @@ class DeterministicBridgeProvider {
   id = "mado-cockpit-system-one-bridge";
   probabilitySemantics = "heuristic";
 
+  capabilities() {
+    return {
+      primitives: ["choice", "noul"],
+      modalities: ["text"],
+      inferenceFamily: "specialist_classifier",
+      specialization: "task",
+      probabilitySemantics: "heuristic",
+      confidenceSemantics: "selected_probability",
+      calibration: {
+        status: "uncalibrated",
+        notes:
+          "Deterministic zero-quota bridge fixture provider.",
+      },
+      patternSupport: {
+        route: {
+          status: "supported",
+        },
+      },
+      supportsBatch: false,
+      supportsAdaptiveReads: false,
+    };
+  }
+
   async decide(request) {
     const userRequest = extractUserRequest(request.state);
     const results = {};
