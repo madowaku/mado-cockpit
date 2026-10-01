@@ -82,6 +82,23 @@ The set of workers executing a mission.
 
 A role-bearing execution unit backed by a provider such as Codex CLI.
 
+### Workspace
+
+An isolated execution surface assigned to one worker.
+
+MCC-M0.1 implements the first concrete workspace kind: `git_worktree`.
+
+Workspace metadata includes:
+
+- workspace id
+- worker id
+- mission id
+- repository root
+- linked worktree path
+- branch
+- base ref
+- lifecycle status
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -126,6 +143,55 @@ Future workspace types may include:
 - container
 - remote_workspace
 - readonly
+
+### MCC-M0.1 worktree contract
+
+A workspace branch and directory are deterministic.
+
+Given:
+
+```text
+mission = MCC-M0.1
+worker = builder
+```
+
+Cockpit creates:
+
+```text
+branch:
+cockpit/mcc-m0.1-builder
+
+path:
+.mado/worktrees/mcc-m0.1-builder
+```
+
+The worktree is created from `HEAD` by default. A caller may provide another base ref.
+
+Creation fails instead of silently reusing an existing path or branch.
+
+### Worktree lifecycle
+
+```text
+worker.created
+  ↓
+workspace create
+  ↓
+git worktree add
+  ↓
+workspace.created
+  ↓
+ready
+  ↓
+workspace status
+  ↓
+workspace remove
+  ↓
+git worktree prune
+  ↓
+workspace.removed
+```
+
+Branch deletion is explicit. Cleanup can remove only the linked worktree, or remove the branch as well.
 
 ## Capability model
 
@@ -190,6 +256,7 @@ Initial canonical event types:
 - worker.completed
 - worker.failed
 - workspace.created
+- workspace.removed
 - workspace.merged
 - capability.requested
 - capability.resolved
@@ -204,20 +271,22 @@ Initial canonical event types:
 
 ```text
 .mado/
-└─ cockpit/
-   ├─ project.json
-   ├─ missions/
-   ├─ workers/
-   └─ events.jsonl
+├─ cockpit/
+│  ├─ project.json
+│  ├─ missions/
+│  ├─ workers/
+│  ├─ workspaces/
+│  └─ events.jsonl
+└─ worktrees/
+   ├─ <mission>-<worker>/
+   └─ ...
 ```
-
-This layout is intentionally small in MCC-M0.0 and expands as later milestones add evidence, handoffs, workspaces, and gates.
 
 ## Milestones
 
-### MCC-M0.0 Skeleton
+### MCC-M0.0 Skeleton ✅
 
-Deliver:
+Delivered:
 
 - Python package
 - CLI
@@ -228,30 +297,31 @@ Deliver:
 - local state store
 - golden-path tests
 
-Done when:
+### MCC-M0.1 Worktree Worker ✅
 
-```text
-mado-cockpit init
-mado-cockpit mission create
-mado-cockpit worker create
-mado-cockpit status
-```
+Delivered:
 
-all work against persistent local state.
-
-### MCC-M0.1 Worktree Worker
-
-Add:
-
-- Git worktree creation
-- deterministic branch naming
-- workspace metadata
-- workspace status
-- cleanup
+- Workspace domain model
+- Git worktree manager
+- deterministic workspace and branch naming
+- worktree creation
+- workspace metadata persistence
+- Git status inspection
+- cleanup and optional branch deletion
+- workspace lifecycle events
+- CLI create/list/status/remove commands
+- two-worker isolation fixture
 
 Golden fixture:
 
-Two workers, two worktrees, one repository, zero collision.
+```text
+2 workers
+2 worktrees
+1 repository
+0 collision
+```
+
+The fixture writes independent uncommitted files into Builder and QA worktrees and verifies that neither workspace sees the other's file.
 
 ### MCC-M0.2 Agent Session Adapter
 
@@ -266,6 +336,8 @@ class AgentProvider:
     def status(self): ...
     def stop(self): ...
 ```
+
+The first real target is to start a Codex session inside a Worktree Worker rather than in the root repository.
 
 ### MCC-M0.3 Evidence Return
 
