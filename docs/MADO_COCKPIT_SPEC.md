@@ -120,6 +120,56 @@ MCC-M0.2 stores:
 
 The external provider identity is never assumed from a successful exit code alone. For Codex resume turns, Cockpit verifies that the emitted thread ID matches the previously stored thread ID.
 
+### Task Contract
+
+A structured assignment that binds a worker to a workspace and declares the evidence required before completion can advance.
+
+A Task Contract includes:
+
+- task ID
+- worker ID
+- workspace ID
+- objective
+- required evidence kinds
+- constraints
+- deliverables
+- done-when conditions
+- lifecycle status
+
+MCC-M0.3 requires at least one `required_evidence` kind. A task without an evidence policy is rejected.
+
+### Result Contract
+
+The worker's structured statement about the attempt.
+
+A Result Contract includes:
+
+- result ID
+- task ID
+- worker/workspace IDs
+- result status: `completed | blocked | failed`
+- summary
+- changes
+- risks
+- optional session ID
+- evidence bundle ID
+- evidence status
+- readiness
+
+The result status is a claim about work outcome. It does not prove completion.
+
+### Evidence Bundle
+
+A frozen package containing:
+
+- Task Contract snapshot
+- Result Contract snapshot
+- evidence manifest
+- copied evidence files
+- SHA-256 and byte size for every evidence item
+
+Evidence validation asks only whether the Task Contract's required evidence kinds are present. Work outcome and evidence completeness remain separate axes.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -288,8 +338,10 @@ Initial canonical event types:
 - capability.requested
 - capability.resolved
 - task.assigned
+- result.submitted
 - evidence.created
 - evidence.validated
+- evidence.incomplete
 - handoff.created
 - gate.requested
 - gate.resolved
@@ -307,6 +359,14 @@ Initial canonical event types:
 │  │  └─ <session-id>/
 │  │     ├─ session.json
 │  │     └─ traces/
+│  ├─ tasks/
+│  ├─ results/
+│  ├─ evidence/
+│  │  └─ <task-id>/<bundle-id>/
+│  │     ├─ manifest.json
+│  │     ├─ task.json
+│  │     ├─ result.json
+│  │     └─ files/
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -446,14 +506,155 @@ Additional negative fixtures verify missing thread IDs and thread drift.
 
 CI uses an injected fake command runner. It never calls the real Codex service and consumes no model quota.
 
-### MCC-M0.3 Evidence Return
+### MCC-M0.3 Evidence Return ✅
 
-Add:
+Delivered:
 
-- Task Contract
-- Result Contract
-- Evidence Bundle
-- evidence events
+- `TaskContract` domain model
+- `ResultContract` domain model
+- `EvidenceItem` domain model
+- `EvidenceBundle` domain model
+- evidence-first Task Contract validation
+- automatic workspace Git snapshot
+- workspace-file evidence capture
+- optional session-trace capture
+- SHA-256 and byte-size recording
+- frozen task/result snapshots per bundle
+- result/evidence lifecycle events
+- CLI task/result/evidence commands
+- fail-closed workspace boundary checks
+
+### Completion contract
+
+A worker may submit:
+
+```text
+status = completed
+summary = "Done."
+```
+
+but Cockpit does not move the task forward from that claim alone.
+
+```text
+Result status        Evidence status      Readiness
+----------------------------------------------------
+completed            validated            ready_for_qa
+completed            incomplete           incomplete
+blocked              validated/incomplete not_completed
+failed               validated/incomplete not_completed
+```
+
+Only `completed + validated` becomes `ready_for_qa`.
+
+### Required evidence contract
+
+Every task must declare at least one required evidence kind.
+
+Example:
+
+```yaml
+task:
+  id: MCC-M0.3-BUILD
+  worker_id: builder
+  objective: Implement evidence return.
+  required_evidence:
+    - git_diff
+    - test_result
+```
+
+If `test_result` is absent, a completed Result Contract remains incomplete.
+
+### Git evidence
+
+When a result is submitted, Cockpit inspects the assigned worktree using:
+
+```text
+git status --porcelain=v1
+git diff --no-ext-diff HEAD --
+```
+
+If workspace changes exist, Cockpit creates a `git_diff` evidence item containing the status and tracked diff snapshot.
+
+This also records untracked filenames through Git status, while the formal bundle remains a snapshot rather than a replacement for Git itself.
+
+### Workspace-file evidence
+
+Explicit evidence files are supplied as:
+
+```text
+KIND=PATH
+```
+
+The path must resolve inside the task's assigned worktree. Symlinks or relative paths that escape the workspace are rejected.
+
+The file is copied into the bundle and recorded with:
+
+```text
+kind
+source
+bundle path
+SHA-256
+size_bytes
+description
+```
+
+### Session trace bridge
+
+A result may reference an Agent Session.
+
+Cockpit may capture that session's last completed JSONL trace as `session_trace` only when:
+
+```text
+session.worker_id == task.worker_id
+session.workspace_id == task.workspace_id
+last_trace exists
+```
+
+A trace from another worker or workspace is rejected.
+
+### Evidence Bundle layout
+
+```text
+.mado/cockpit/evidence/
+└─ <task-id>/
+   └─ <bundle-id>/
+      ├─ manifest.json
+      ├─ task.json
+      ├─ result.json
+      └─ files/
+         ├─ workspace-changes.txt
+         ├─ 01-test_result-tests.txt
+         └─ session-trace.jsonl
+```
+
+The copied task/result files freeze the contracts as they existed when the bundle was created.
+
+### M0.3 golden fixtures
+
+The fixture set verifies:
+
+```text
+completed + git_diff + test_result
+  → ready_for_qa
+
+completed + missing required evidence
+  → incomplete
+
+failed + complete evidence
+  → evidence may validate
+  → task remains not completed
+
+evidence file outside worktree
+  → rejected
+
+task with no evidence policy
+  → rejected
+
+matching session trace
+  → bundle capture allowed
+```
+
+MCC-M0.3 validates evidence presence, ownership, hashing, and provenance. It does not yet independently judge whether the implementation is correct. Independent validation begins in MCC-M0.4 with the QA Worker.
 
 ### MCC-M0.4 Builder → QA Handoff
 
