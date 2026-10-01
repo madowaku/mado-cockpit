@@ -119,6 +119,45 @@ Verdict
 
 Builder cannot QA its own task. QA must be a separate worker and workspace in the same mission.
 
+
+### MCC-M0.5 Operator
+
+The Cockpit now has a deterministic Operator layer that composes M0.0 through M0.4.
+
+The Operator does not invent policy or silently spend model quota. It performs only legal state transitions and keeps model execution explicit.
+
+```text
+Mission + Objective
+  ↓
+Operator start
+  ├─ create Builder worker
+  ├─ create QA worker
+  ├─ create 2 worktrees
+  └─ assign Builder Task
+        ↓
+operator launch builder
+        ↓
+operator result builder
+        ↓
+automatic advance
+        ↓
+Handoff + QA Task
+        ↓
+operator launch qa
+        ↓
+operator result qa
+        ↓
+operator verdict
+        ↓
+completed / needs_fix / blocked
+```
+
+`operator advance` never calls Codex. It only observes state and performs deterministic orchestration such as creating the next Handoff.
+
+If a recorded Builder or QA session is still active, `operator launch` resumes the same conversation instead of spawning a duplicate session. Stopped or failed sessions are replaced when launched again.
+
+A `needs_fix` verdict routes the original Builder Task back for revision. A new validated Builder Result creates a fresh Handoff while preserving the previous review history.
+
 ## Quick start
 
 ```bash
@@ -234,6 +273,44 @@ mado-cockpit handoff verdict <HANDOFF_ID> \
 
 Use `needs_fix` to route the source task back to Builder, or `blocked` when QA cannot complete validation.
 
+The same production loop can now be bootstrapped through one Operator ID:
+
+```bash
+mado-cockpit operator start MCC-DEMO \
+  "Implement the smallest safe next step." \
+  --require git_diff \
+  --require test_result
+```
+
+Then use the returned `operator_id`:
+
+```bash
+mado-cockpit operator launch <OPERATOR_ID> builder
+
+mado-cockpit operator result <OPERATOR_ID> builder \
+  --status completed \
+  --summary "Builder result ready." \
+  --evidence test_result=tests.txt
+
+mado-cockpit operator launch <OPERATOR_ID> qa
+
+mado-cockpit operator result <OPERATOR_ID> qa \
+  --status completed \
+  --summary "QA complete." \
+  --evidence qa_report=qa-report.txt
+
+mado-cockpit operator verdict <OPERATOR_ID> \
+  --verdict pass \
+  --summary "Independent QA passed."
+```
+
+Inspect the full production run at any time:
+
+```bash
+mado-cockpit operator status <OPERATOR_ID>
+mado-cockpit operator list
+```
+
 MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop` closes a turn-based session only when no turn is executing.
 
 ## Local state
@@ -264,6 +341,10 @@ MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop`
 │  │     ├─ handoff.json
 │  │     ├─ status.json
 │  │     └─ verdict.json
+│  ├─ operators/
+│  │  └─ <operator-id>/
+│  │     ├─ plan.json
+│  │     └─ state.json
 │  └─ events.jsonl
 └─ worktrees/
    └─ <mission>-<worker>/
@@ -319,6 +400,26 @@ self-review           → rejected
 snapshot mutation     → verdict rejected
 ```
 
+
+## MCC-M0.5 golden fixtures
+
+The Operator fixtures verify:
+
+```text
+Mission + objective     → Builder + QA + 2 worktrees + Task
+Builder validated       → automatic Handoff
+repeated advance        → no duplicate Handoff
+QA validated            → awaiting_verdict
+PASS                    → Operator completed
+NEEDS_FIX               → Builder revision path
+revised Builder result  → new Handoff, old history preserved
+active Codex session    → resumed, not duplicated
+session trace           → automatically bound into Result
+operator stop           → recorded session closed
+```
+
+The model-facing fixtures use an injected fake provider, so Operator tests do not consume Codex quota.
+
 ## Milestone path
 
 1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
@@ -326,7 +427,7 @@ snapshot mutation     → verdict rejected
 3. **MCC-M0.2 Agent Session Adapter** — Codex CLI first ✅
 4. **MCC-M0.3 Evidence Return** — task/result/evidence contracts ✅
 5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop ✅
-6. **MCC-M0.5 Operator** — agent-controlled cockpit
+6. **MCC-M0.5 Operator** — deterministic agent-controlled cockpit ✅
 7. **MCC-M0.6 Capability Pager Bridge**
 8. **MCC-M0.7 Human Question Gate**
 9. **MCC-M0.8 Cockpit UI**
