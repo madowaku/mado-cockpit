@@ -25,16 +25,40 @@ _ALLOWED_RESULT_STATUS = {
     "blocked",
     "failed",
 }
+_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _unique(values: Iterable[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))
+    return list(
+        dict.fromkeys(
+            value.strip()
+            for value in values
+            if value and value.strip()
+        )
+    )
 
 
 def _safe_name(value: str) -> str:
-    value = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
+    value = re.sub(
+        r"[^A-Za-z0-9._-]+",
+        "-",
+        value.strip(),
+    )
     value = value.strip("-._").lower()
     return value or "evidence"
+
+
+def _validate_identifier(
+    value: str,
+    *,
+    label: str,
+) -> str:
+    if not _SAFE_ID.fullmatch(value):
+        raise RuntimeError(
+            f"{label} must contain only letters, numbers, "
+            "dot, underscore, and hyphen"
+        )
+    return value
 
 
 class EvidenceManager:
@@ -55,29 +79,60 @@ class EvidenceManager:
         deliverables: Iterable[str] = (),
         done_when: Iterable[str] = (),
     ) -> dict[str, Any]:
+        _validate_identifier(
+            task_id,
+            label="Task id",
+        )
+        if not objective.strip():
+            raise RuntimeError(
+                "Task objective must not be empty"
+            )
+
+        required = _unique(required_evidence)
+        if not required:
+            raise RuntimeError(
+                "Task contract requires at least one "
+                "required evidence kind"
+            )
+        for kind in required:
+            _validate_identifier(
+                kind,
+                label="Evidence kind",
+            )
+
         worker = self.store.get_worker(worker_id)
-        workspace = self.store.get_workspace_for_worker(worker_id)
+        workspace = (
+            self.store.get_workspace_for_worker(
+                worker_id
+            )
+        )
 
         if workspace["status"] != "ready":
             raise RuntimeError(
-                f"Workspace is not ready: {workspace['id']}"
+                f"Workspace is not ready: "
+                f"{workspace['id']}"
             )
 
         path = self.tasks_dir / f"{task_id}.json"
         if path.exists():
-            raise RuntimeError(f"Task already exists: {task_id}")
+            raise RuntimeError(
+                f"Task already exists: {task_id}"
+            )
 
         task = TaskContract(
             id=task_id,
             worker_id=worker_id,
             workspace_id=str(workspace["id"]),
-            objective=objective,
-            required_evidence=_unique(required_evidence),
+            objective=objective.strip(),
+            required_evidence=required,
             constraints=_unique(constraints),
             deliverables=_unique(deliverables),
             done_when=_unique(done_when),
         )
-        self._write_json(path, task.to_dict())
+        self._write_json(
+            path,
+            task.to_dict(),
+        )
         self.store.append_event(
             Event(
                 type="task.assigned",
@@ -87,16 +142,27 @@ class EvidenceManager:
                     "task_id": task.id,
                     "worker_id": task.worker_id,
                     "workspace_id": task.workspace_id,
-                    "required_evidence": task.required_evidence,
+                    "required_evidence": (
+                        task.required_evidence
+                    ),
                 },
             )
         )
         return task.to_dict()
 
-    def get_task(self, task_id: str) -> dict[str, Any]:
+    def get_task(
+        self,
+        task_id: str,
+    ) -> dict[str, Any]:
+        _validate_identifier(
+            task_id,
+            label="Task id",
+        )
         path = self.tasks_dir / f"{task_id}.json"
         if not path.exists():
-            raise RuntimeError(f"Task not found: {task_id}")
+            raise RuntimeError(
+                f"Task not found: {task_id}"
+            )
         return self._read_json(path)
 
     def list_tasks(self) -> list[dict[str, Any]]:
@@ -104,7 +170,9 @@ class EvidenceManager:
             return []
         return [
             self._read_json(path)
-            for path in sorted(self.tasks_dir.glob("*.json"))
+            for path in sorted(
+                self.tasks_dir.glob("*.json")
+            )
         ]
 
     def submit_result(
@@ -113,71 +181,96 @@ class EvidenceManager:
         *,
         status: str,
         summary: str,
-        evidence_files: Iterable[tuple[str, str]] = (),
+        evidence_files: Iterable[
+            tuple[str, str]
+        ] = (),
         changes: Iterable[str] = (),
         risks: Iterable[str] = (),
         session_id: str | None = None,
     ) -> dict[str, Any]:
         if status not in _ALLOWED_RESULT_STATUS:
-            allowed = ", ".join(sorted(_ALLOWED_RESULT_STATUS))
+            allowed = ", ".join(
+                sorted(_ALLOWED_RESULT_STATUS)
+            )
             raise RuntimeError(
                 f"Unsupported result status: {status}. "
                 f"Expected one of: {allowed}"
             )
+        if not summary.strip():
+            raise RuntimeError(
+                "Result summary must not be empty"
+            )
 
         task = self.get_task(task_id)
-        worker = self.store.get_worker(str(task["worker_id"]))
+        worker = self.store.get_worker(
+            str(task["worker_id"])
+        )
         workspace = self.store.get_workspace(
             str(task["workspace_id"])
         )
-        self._require_workspace_ready(workspace)
+        self._require_workspace_ready(
+            workspace
+        )
 
-        bundle_id = f"evb_{uuid4().hex[:12]}"
-        result_id = f"res_{uuid4().hex[:12]}"
+        normalized_files: list[
+            tuple[str, str]
+        ] = []
+        for kind, raw_path in evidence_files:
+            normalized_kind = kind.strip()
+            _validate_identifier(
+                normalized_kind,
+                label="Evidence kind",
+            )
+            normalized_files.append(
+                (
+                    normalized_kind,
+                    raw_path,
+                )
+            )
+
+        bundle_id = (
+            f"evb_{uuid4().hex[:12]}"
+        )
+        result_id = (
+            f"res_{uuid4().hex[:12]}"
+        )
         bundle_dir = (
             self.evidence_dir
             / task_id
             / bundle_id
         )
         files_dir = bundle_dir / "files"
-        files_dir.mkdir(parents=True, exist_ok=False)
-
-        items: list[EvidenceItem] = []
-
-        git_item = self._capture_workspace_changes(
-            workspace=workspace,
-            files_dir=files_dir,
+        files_dir.mkdir(
+            parents=True,
+            exist_ok=False,
         )
-        if git_item is not None:
-            items.append(git_item)
 
-        for index, (kind, raw_path) in enumerate(
-            evidence_files,
-            start=1,
-        ):
-            items.append(
-                self._capture_workspace_file(
-                    workspace=workspace,
-                    kind=kind,
-                    raw_path=raw_path,
-                    files_dir=files_dir,
-                    index=index,
-                )
+        try:
+            items = self._capture_items(
+                task=task,
+                workspace=workspace,
+                files_dir=files_dir,
+                evidence_files=normalized_files,
+                session_id=session_id,
             )
-
-        if session_id:
-            items.append(
-                self._capture_session_trace(
-                    session_id=session_id,
-                    task=task,
-                    files_dir=files_dir,
-                )
+        except Exception:
+            shutil.rmtree(
+                bundle_dir,
+                ignore_errors=True,
             )
+            raise
 
-        present = {item.kind for item in items}
-        required = list(task["required_evidence"])
+        present = {
+            item.kind
+            for item in items
+        }
+        required = list(
+            task["required_evidence"]
+        )
         missing = [
-            kind for kind in required if kind not in present
+            kind
+            for kind in required
+            if kind not in present
         ]
         evidence_status = (
             "validated"
@@ -185,7 +278,10 @@ class EvidenceManager:
             else "incomplete"
         )
 
-        if status == "completed" and evidence_status == "validated":
+        if (
+            status == "completed"
+            and evidence_status == "validated"
+        ):
             readiness = "ready_for_qa"
         elif status == "completed":
             readiness = "incomplete"
@@ -195,8 +291,12 @@ class EvidenceManager:
         bundle = EvidenceBundle(
             id=bundle_id,
             task_id=task_id,
-            worker_id=str(task["worker_id"]),
-            workspace_id=str(task["workspace_id"]),
+            worker_id=str(
+                task["worker_id"]
+            ),
+            workspace_id=str(
+                task["workspace_id"]
+            ),
             status=evidence_status,
             required_evidence=required,
             missing_evidence=missing,
@@ -205,10 +305,14 @@ class EvidenceManager:
         result = ResultContract(
             id=result_id,
             task_id=task_id,
-            worker_id=str(task["worker_id"]),
-            workspace_id=str(task["workspace_id"]),
+            worker_id=str(
+                task["worker_id"]
+            ),
+            workspace_id=str(
+                task["workspace_id"]
+            ),
             status=status,
-            summary=summary,
+            summary=summary.strip(),
             evidence_bundle_id=bundle_id,
             evidence_status=evidence_status,
             readiness=readiness,
@@ -241,18 +345,28 @@ class EvidenceManager:
             result.to_dict(),
         )
 
-        task["status"] = (
-            "evidence_validated"
-            if evidence_status == "validated"
-            else "evidence_incomplete"
-        )
+        if readiness == "ready_for_qa":
+            task_status = "ready_for_qa"
+        elif status == "completed":
+            task_status = (
+                "evidence_incomplete"
+            )
+        else:
+            task_status = (
+                f"result_{status}"
+            )
+
+        task["status"] = task_status
         task["updated_at"] = utc_now()
         self._write_json(
-            self.tasks_dir / f"{task_id}.json",
+            self.tasks_dir
+            / f"{task_id}.json",
             task,
         )
 
-        mission_id = self._mission_id(worker)
+        mission_id = self._mission_id(
+            worker
+        )
         self.store.append_event(
             Event(
                 type="result.submitted",
@@ -261,9 +375,13 @@ class EvidenceManager:
                 subject={
                     "result_id": result.id,
                     "task_id": task_id,
-                    "worker_id": result.worker_id,
+                    "worker_id": (
+                        result.worker_id
+                    ),
                     "status": result.status,
-                    "readiness": result.readiness,
+                    "readiness": (
+                        result.readiness
+                    ),
                 },
             )
         )
@@ -284,7 +402,8 @@ class EvidenceManager:
             Event(
                 type=(
                     "evidence.validated"
-                    if evidence_status == "validated"
+                    if evidence_status
+                    == "validated"
                     else "evidence.incomplete"
                 ),
                 mission_id=mission_id,
@@ -292,7 +411,9 @@ class EvidenceManager:
                 subject={
                     "bundle_id": bundle.id,
                     "task_id": task_id,
-                    "missing_evidence": missing,
+                    "missing_evidence": (
+                        missing
+                    ),
                 },
             )
         )
@@ -309,15 +430,23 @@ class EvidenceManager:
         if not self.results_dir.exists():
             return []
 
-        pattern = (
-            f"{task_id}/*.json"
-            if task_id
-            else "*/*.json"
-        )
+        if task_id:
+            _validate_identifier(
+                task_id,
+                label="Task id",
+            )
+            pattern = (
+                f"{task_id}/*.json"
+            )
+        else:
+            pattern = "*/*.json"
+
         return [
             self._read_json(path)
             for path in sorted(
-                self.results_dir.glob(pattern)
+                self.results_dir.glob(
+                    pattern
+                )
             )
         ]
 
@@ -328,15 +457,23 @@ class EvidenceManager:
         if not self.evidence_dir.exists():
             return []
 
-        pattern = (
-            f"{task_id}/*/manifest.json"
-            if task_id
-            else "*/*/manifest.json"
-        )
+        if task_id:
+            _validate_identifier(
+                task_id,
+                label="Task id",
+            )
+            pattern = (
+                f"{task_id}/*/manifest.json"
+            )
+        else:
+            pattern = "*/*/manifest.json"
+
         return [
             self._read_json(path)
             for path in sorted(
-                self.evidence_dir.glob(pattern)
+                self.evidence_dir.glob(
+                    pattern
+                )
             )
         ]
 
@@ -344,30 +481,98 @@ class EvidenceManager:
         self,
         bundle_id: str,
     ) -> dict[str, Any]:
+        _validate_identifier(
+            bundle_id,
+            label="Bundle id",
+        )
         if not self.evidence_dir.exists():
             raise RuntimeError(
-                f"Evidence bundle not found: {bundle_id}"
+                "Evidence bundle not found: "
+                f"{bundle_id}"
             )
 
         matches = list(
             self.evidence_dir.glob(
-                f"*/{bundle_id}/manifest.json"
+                f"*/{bundle_id}/"
+                "manifest.json"
             )
         )
         if len(matches) != 1:
             raise RuntimeError(
-                f"Evidence bundle not found: {bundle_id}"
+                "Evidence bundle not found: "
+                f"{bundle_id}"
             )
-        return self._read_json(matches[0])
+        return self._read_json(
+            matches[0]
+        )
 
     def summary(self) -> dict[str, int]:
+        tasks = self.list_tasks()
         return {
-            "task_count": len(self.list_tasks()),
-            "result_count": len(self.list_results()),
+            "task_count": len(tasks),
+            "ready_for_qa_count": sum(
+                1
+                for task in tasks
+                if task["status"]
+                == "ready_for_qa"
+            ),
+            "result_count": len(
+                self.list_results()
+            ),
             "evidence_bundle_count": len(
                 self.list_bundles()
             ),
         }
+
+    def _capture_items(
+        self,
+        *,
+        task: dict[str, Any],
+        workspace: dict[str, Any],
+        files_dir: Path,
+        evidence_files: list[
+            tuple[str, str]
+        ],
+        session_id: str | None,
+    ) -> list[EvidenceItem]:
+        items: list[EvidenceItem] = []
+
+        git_item = (
+            self._capture_workspace_changes(
+                workspace=workspace,
+                files_dir=files_dir,
+            )
+        )
+        if git_item is not None:
+            items.append(git_item)
+
+        for index, (
+            kind,
+            raw_path,
+        ) in enumerate(
+            evidence_files,
+            start=1,
+        ):
+            items.append(
+                self._capture_workspace_file(
+                    workspace=workspace,
+                    kind=kind,
+                    raw_path=raw_path,
+                    files_dir=files_dir,
+                    index=index,
+                )
+            )
+
+        if session_id:
+            items.append(
+                self._capture_session_trace(
+                    session_id=session_id,
+                    task=task,
+                    files_dir=files_dir,
+                )
+            )
+
+        return items
 
     def _capture_workspace_changes(
         self,
@@ -375,7 +580,9 @@ class EvidenceManager:
         workspace: dict[str, Any],
         files_dir: Path,
     ) -> EvidenceItem | None:
-        cwd = Path(str(workspace["path"]))
+        cwd = Path(
+            str(workspace["path"])
+        )
         status = self._git(
             cwd,
             "status",
@@ -389,24 +596,36 @@ class EvidenceManager:
             "--",
         )
 
-        if not status.strip() and not diff.strip():
+        if (
+            not status.strip()
+            and not diff.strip()
+        ):
             return None
 
-        path = files_dir / "workspace-changes.txt"
+        path = (
+            files_dir
+            / "workspace-changes.txt"
+        )
         payload = (
-            "# git status --porcelain=v1\n"
+            "# git status "
+            "--porcelain=v1\n"
             f"{status.rstrip()}\n\n"
-            "# git diff --no-ext-diff HEAD --\n"
+            "# git diff "
+            "--no-ext-diff HEAD --\n"
             f"{diff.rstrip()}\n"
         )
-        path.write_text(payload, encoding="utf-8")
+        path.write_text(
+            payload,
+            encoding="utf-8",
+        )
         return self._item(
             kind="git_diff",
             path=path,
             source="workspace_snapshot",
             description=(
-                "Git status and tracked diff captured "
-                "from the assigned worktree"
+                "Git status and tracked diff "
+                "captured from the assigned "
+                "worktree"
             ),
         )
 
@@ -419,46 +638,52 @@ class EvidenceManager:
         files_dir: Path,
         index: int,
     ) -> EvidenceItem:
-        if not kind.strip():
-            raise RuntimeError(
-                "Evidence kind must not be empty"
-            )
-
         workspace_root = Path(
             str(workspace["path"])
         ).resolve()
         source = Path(raw_path)
         if not source.is_absolute():
-            source = workspace_root / source
+            source = (
+                workspace_root / source
+            )
         source = source.resolve()
 
         try:
-            source.relative_to(workspace_root)
+            source.relative_to(
+                workspace_root
+            )
         except ValueError as exc:
             raise RuntimeError(
-                "Evidence files must live inside "
-                "the assigned workspace"
+                "Evidence files must live "
+                "inside the assigned workspace"
             ) from exc
 
         if not source.is_file():
             raise RuntimeError(
-                f"Evidence file not found: {source}"
+                "Evidence file not found: "
+                f"{source}"
             )
 
         target = (
             files_dir
             / (
-                f"{index:02d}-{_safe_name(kind)}-"
+                f"{index:02d}-"
+                f"{_safe_name(kind)}-"
                 f"{source.name}"
             )
         )
-        shutil.copy2(source, target)
+        shutil.copy2(
+            source,
+            target,
+        )
         return self._item(
             kind=kind,
             path=target,
             source="workspace_file",
             description=str(
-                source.relative_to(workspace_root)
+                source.relative_to(
+                    workspace_root
+                )
             ),
         )
 
@@ -469,32 +694,50 @@ class EvidenceManager:
         task: dict[str, Any],
         files_dir: Path,
     ) -> EvidenceItem:
-        session = self.store.get_session(session_id)
+        session = self.store.get_session(
+            session_id
+        )
 
         if (
-            session["worker_id"] != task["worker_id"]
+            session["worker_id"]
+            != task["worker_id"]
             or session["workspace_id"]
             != task["workspace_id"]
         ):
             raise RuntimeError(
-                "Session does not belong to the "
-                "task worker/workspace"
+                "Session does not belong to "
+                "the task worker/workspace"
             )
 
-        raw_trace = session.get("last_trace")
-        if not isinstance(raw_trace, str):
+        raw_trace = session.get(
+            "last_trace"
+        )
+        if not isinstance(
+            raw_trace,
+            str,
+        ):
             raise RuntimeError(
-                "Session has no completed trace to capture"
+                "Session has no completed "
+                "trace to capture"
             )
 
-        trace = (self.store.root / raw_trace).resolve()
+        trace = (
+            self.store.root / raw_trace
+        ).resolve()
         if not trace.is_file():
             raise RuntimeError(
-                f"Session trace not found: {trace}"
+                "Session trace not found: "
+                f"{trace}"
             )
 
-        target = files_dir / "session-trace.jsonl"
-        shutil.copy2(trace, target)
+        target = (
+            files_dir
+            / "session-trace.jsonl"
+        )
+        shutil.copy2(
+            trace,
+            target,
+        )
         return self._item(
             kind="session_trace",
             path=target,
@@ -514,14 +757,19 @@ class EvidenceManager:
         size = 0
         with path.open("rb") as handle:
             for chunk in iter(
-                lambda: handle.read(1024 * 1024),
+                lambda: handle.read(
+                    1024 * 1024
+                ),
                 b"",
             ):
                 size += len(chunk)
                 digest.update(chunk)
 
         return EvidenceItem(
-            id=f"evi_{uuid4().hex[:12]}",
+            id=(
+                f"evi_"
+                f"{uuid4().hex[:12]}"
+            ),
             kind=kind,
             path=self._relative(path),
             sha256=digest.hexdigest(),
@@ -554,7 +802,12 @@ class EvidenceManager:
         *args: str,
     ) -> str:
         result = subprocess.run(
-            ["git", "-C", str(cwd), *args],
+            [
+                "git",
+                "-C",
+                str(cwd),
+                *args,
+            ],
             capture_output=True,
             text=True,
         )
@@ -564,7 +817,8 @@ class EvidenceManager:
                 or result.stdout.strip()
             )
             raise RuntimeError(
-                f"git {' '.join(args)} failed: {detail}"
+                f"git {' '.join(args)} "
+                f"failed: {detail}"
             )
         return result.stdout
 
@@ -572,10 +826,19 @@ class EvidenceManager:
     def _mission_id(
         worker: dict[str, Any],
     ) -> str | None:
-        value = worker.get("mission_id")
-        return str(value) if value is not None else None
+        value = worker.get(
+            "mission_id"
+        )
+        return (
+            str(value)
+            if value is not None
+            else None
+        )
 
-    def _relative(self, path: Path) -> str:
+    def _relative(
+        self,
+        path: Path,
+    ) -> str:
         return str(
             path.resolve().relative_to(
                 self.store.root.resolve()
@@ -606,5 +869,7 @@ class EvidenceManager:
         path: Path,
     ) -> dict[str, Any]:
         return json.loads(
-            path.read_text(encoding="utf-8")
+            path.read_text(
+                encoding="utf-8"
+            )
         )
