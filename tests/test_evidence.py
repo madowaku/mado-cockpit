@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from mado_cockpit.evidence import EvidenceManager
-from mado_cockpit.models import Mission, Project, Worker
+from mado_cockpit.models import AgentSession, Mission, Project, Worker
 from mado_cockpit.store import CockpitStore
 from mado_cockpit.worktrees import WorktreeManager
 
@@ -387,4 +387,73 @@ def test_failed_result_never_becomes_ready_for_qa(
             "MCC-M0.3-FAILED"
         )["status"]
         == "result_failed"
+    )
+
+
+def test_session_trace_can_be_bound_into_evidence_bundle(
+    tmp_path,
+):
+    store, workspace, manager = setup_builder(
+        tmp_path
+    )
+    session = AgentSession(
+        id="fixture-session",
+        worker_id="builder",
+        workspace_id=workspace.id,
+        provider="codex",
+        external_session_id="thread-123",
+        status="active",
+        turn_count=1,
+    )
+    store.create_session(
+        session,
+        mission_id="MCC-M0.3",
+    )
+    trace = store.save_session_trace(
+        session.id,
+        1,
+        stdout=(
+            '{"type":"thread.started",'
+            '"thread_id":"thread-123"}\n'
+        ),
+        stderr="",
+    )
+    store.update_session(
+        session.id,
+        last_trace=trace["stdout"],
+    )
+
+    manager.create_task(
+        "MCC-M0.3-TRACE",
+        "builder",
+        "Return the final Codex turn as evidence",
+        required_evidence=[
+            "session_trace",
+        ],
+    )
+
+    submitted = manager.submit_result(
+        "MCC-M0.3-TRACE",
+        status="completed",
+        summary="Session trace captured.",
+        session_id=session.id,
+    )
+
+    result = submitted["result"]
+    bundle = submitted["bundle"]
+
+    assert result["readiness"] == "ready_for_qa"
+    assert result["session_id"] == session.id
+    assert [
+        item["kind"]
+        for item in bundle["items"]
+    ] == ["session_trace"]
+
+    trace_item = bundle["items"][0]
+    bundled_trace = (
+        tmp_path / trace_item["path"]
+    )
+    assert bundled_trace.is_file()
+    assert "thread-123" in bundled_trace.read_text(
+        encoding="utf-8"
     )
