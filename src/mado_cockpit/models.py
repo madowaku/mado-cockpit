@@ -188,6 +188,39 @@ class QAVerdict:
 
 
 @dataclass(slots=True)
+class OperatorPlan:
+    id: str
+    mission_id: str
+    objective: str
+    builder_worker_id: str
+    qa_worker_id: str
+    builder_task_id: str
+    provider: str
+    required_evidence: list[str]
+    base_ref: str = "HEAD"
+    created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class OperatorState:
+    operator_id: str
+    status: str = "prepared"
+    handoff_id: str | None = None
+    builder_session_id: str | None = None
+    qa_session_id: str | None = None
+    last_action: str | None = None
+    last_error: str | None = None
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Event:
     type: str
     subject: dict[str, Any]
