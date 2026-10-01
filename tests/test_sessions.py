@@ -359,3 +359,102 @@ def test_codex_start_requires_reported_thread_id(
 
     session = store.list_sessions()[0]
     assert session["status"] == "failed"
+
+
+def test_workspace_rejects_second_active_session(
+    tmp_path,
+):
+    store, _ = setup_worker(tmp_path)
+    runner = FakeRunner(
+        [
+            CommandResult(
+                returncode=0,
+                stdout=event_stream(
+                    "thread-one",
+                    "first",
+                ),
+                stderr="",
+            )
+        ]
+    )
+    manager = SessionManager(
+        store,
+        providers={
+            "codex": CodexCLIProvider(
+                runner=runner
+            )
+        },
+    )
+
+    manager.start(
+        "builder",
+        "First session",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="already has an active session",
+    ):
+        manager.start(
+            "builder",
+            "Second session",
+        )
+
+    assert len(runner.calls) == 1
+
+
+def test_failed_session_can_be_replaced(
+    tmp_path,
+):
+    store, _ = setup_worker(tmp_path)
+    runner = FakeRunner(
+        [
+            CommandResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "type": "turn.completed",
+                    }
+                )
+                + "\n",
+                stderr="",
+            ),
+            CommandResult(
+                returncode=0,
+                stdout=event_stream(
+                    "thread-retry",
+                    "recovered",
+                ),
+                stderr="",
+            ),
+        ]
+    )
+    manager = SessionManager(
+        store,
+        providers={
+            "codex": CodexCLIProvider(
+                runner=runner
+            )
+        },
+    )
+
+    with pytest.raises(RuntimeError):
+        manager.start(
+            "builder",
+            "Broken first session",
+        )
+
+    failed = store.list_sessions()[0]
+    assert failed["status"] == "failed"
+
+    recovered = manager.start(
+        "builder",
+        "Retry session",
+    )
+
+    assert recovered["status"] == "active"
+    assert recovered["id"] != failed["id"]
+    assert (
+        recovered["external_session_id"]
+        == "thread-retry"
+    )
