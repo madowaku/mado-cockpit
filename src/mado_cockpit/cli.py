@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from .models import Mission, Project, Worker
+from .providers import CodexCLIProvider
+from .sessions import SessionManager
 from .store import CockpitStore
 from .worktrees import WorktreeManager
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="mado-cockpit")
+    parser = argparse.ArgumentParser(
+        prog="mado-cockpit"
+    )
     sub = parser.add_subparsers(
         dest="command",
         required=True,
@@ -52,7 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a worker",
     )
     worker_create.add_argument("worker_id")
-    worker_create.add_argument("--role", required=True)
+    worker_create.add_argument(
+        "--role",
+        required=True,
+    )
     worker_create.add_argument("--mission")
     worker_create.add_argument(
         "--provider",
@@ -103,6 +111,66 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
+    session = sub.add_parser(
+        "session",
+        help="Agent session operations",
+    )
+    session_sub = session.add_subparsers(
+        dest="session_command",
+        required=True,
+    )
+
+    session_start = session_sub.add_parser(
+        "start",
+        help="Start an agent session in a worker workspace",
+    )
+    session_start.add_argument("worker_id")
+    session_start.add_argument("prompt")
+    session_start.add_argument(
+        "--provider",
+        default="codex",
+        choices=["codex"],
+    )
+    session_start.add_argument("--model")
+    session_start.add_argument(
+        "--codex-binary",
+        default=os.environ.get(
+            "MADO_CODEX_BIN",
+            "codex",
+        ),
+    )
+
+    session_send = session_sub.add_parser(
+        "send",
+        help="Send a follow-up turn to an agent session",
+    )
+    session_send.add_argument("session_id")
+    session_send.add_argument("prompt")
+    session_send.add_argument(
+        "--codex-binary",
+        default=os.environ.get(
+            "MADO_CODEX_BIN",
+            "codex",
+        ),
+    )
+
+    session_status = session_sub.add_parser(
+        "status",
+        help="Inspect an agent session",
+    )
+    session_status.add_argument("session_id")
+
+    session_stop = session_sub.add_parser(
+        "stop",
+        help="Close a local agent session",
+    )
+    session_stop.add_argument("session_id")
+
+    session_sub.add_parser(
+        "list",
+        help="List agent sessions",
+    )
+
     sub.add_parser(
         "status",
         help="Show cockpit status",
@@ -110,7 +178,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def _session_manager(
+    store: CockpitStore,
+    *,
+    codex_binary: str = "codex",
+) -> SessionManager:
+    return SessionManager(
+        store,
+        providers={
+            "codex": CodexCLIProvider(
+                executable=codex_binary,
+            )
+        },
+    )
+
+
+def main(
+    argv: list[str] | None = None,
+) -> int:
     args = build_parser().parse_args(argv)
     root = Path(
         getattr(args, "root", ".")
@@ -212,6 +297,81 @@ def main(argv: list[str] | None = None) -> int:
                             args.delete_branch
                         ),
                         force=args.force,
+                    ),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
+    if args.command == "session":
+        if args.session_command == "list":
+            print(
+                json.dumps(
+                    store.list_sessions(),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
+        if args.session_command == "start":
+            manager = _session_manager(
+                store,
+                codex_binary=args.codex_binary,
+            )
+            result = manager.start(
+                args.worker_id,
+                args.prompt,
+                provider_name=args.provider,
+                model=args.model,
+            )
+            print(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
+        if args.session_command == "send":
+            manager = _session_manager(
+                store,
+                codex_binary=args.codex_binary,
+            )
+            result = manager.send(
+                args.session_id,
+                args.prompt,
+            )
+            print(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
+        manager = _session_manager(store)
+
+        if args.session_command == "status":
+            print(
+                json.dumps(
+                    manager.status(
+                        args.session_id
+                    ),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
+        if args.session_command == "stop":
+            print(
+                json.dumps(
+                    manager.stop(
+                        args.session_id
                     ),
                     ensure_ascii=False,
                     indent=2,
