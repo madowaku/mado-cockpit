@@ -179,7 +179,7 @@ def test_completed_result_becomes_ready_for_qa_with_required_evidence(
     )
     assert (
         stored_task["status"]
-        == "evidence_validated"
+        == "ready_for_qa"
     )
 
     assert store.event_count() == 8
@@ -322,4 +322,69 @@ def test_bundle_contains_task_and_result_snapshots(
     assert (
         result_snapshot["readiness"]
         == "ready_for_qa"
+    )
+
+
+def test_task_contract_requires_evidence_policy(
+    tmp_path,
+):
+    _, _, manager = setup_builder(tmp_path)
+
+    with pytest.raises(
+        RuntimeError,
+        match="requires at least one",
+    ):
+        manager.create_task(
+            "MCC-M0.3-NO-CONTRACT",
+            "builder",
+            "Do work without evidence policy",
+        )
+
+
+def test_failed_result_never_becomes_ready_for_qa(
+    tmp_path,
+):
+    _, workspace, manager = setup_builder(
+        tmp_path
+    )
+    manager.create_task(
+        "MCC-M0.3-FAILED",
+        "builder",
+        "Capture evidence from a failed attempt",
+        required_evidence=[
+            "git_diff",
+        ],
+    )
+
+    Path(
+        workspace.path,
+        "failed-change.txt",
+    ).write_text(
+        "partial work\n",
+        encoding="utf-8",
+    )
+
+    submitted = manager.submit_result(
+        "MCC-M0.3-FAILED",
+        status="failed",
+        summary="Implementation failed after partial changes.",
+    )
+
+    assert (
+        submitted["bundle"]["status"]
+        == "validated"
+    )
+    assert (
+        submitted["result"]["evidence_status"]
+        == "validated"
+    )
+    assert (
+        submitted["result"]["readiness"]
+        == "not_completed"
+    )
+    assert (
+        manager.get_task(
+            "MCC-M0.3-FAILED"
+        )["status"]
+        == "result_failed"
     )
