@@ -1,0 +1,67 @@
+{
+  "capabilities": [
+    {
+      "id": "codex-cli",
+      "kind": "cli",
+      "name": "Codex CLI",
+      "shortDescription": "Implement code changes, edit repository files, and run development tasks.",
+      "fullDescription": "Use Codex CLI for repository implementation work inside an isolated worker workspace.",
+      "instructionsRef": "MCC-M0.2 Agent Session Adapter",
+      "availability": "available",
+      "riskTags": [],
+      "costClass": "free",
+      "metadata": {
+        "keywords": "implement code builder repository"
+      }
+    },
+    {
+      "id": "qa-review",
+      "kind": "harness",
+      "name": "QA Review Harness",
+      "shortDescription": "Independently validate evidence, regression coverage, tests, and QA findings.",
+      "fullDescription": "Use for independent QA review and evidence-backed verdict preparation.",
+      "availability": "available",
+      "riskTags": [],
+      "costClass": "free",
+      "metadata": {
+        "keywords": "qa review validate evidence regression tests"
+      }
+    },
+    {
+      "id": "github",
+      "kind": "plugin",
+      "name": "GitHub",
+      "shortDescription": "Inspect repositories, commits, pull requests, and workflow evidence.",
+      "availability": "available",
+      "riskTags": [],
+      "costClass": "low",
+      "metadata": {
+        "keywords": "github repository commit workflow"
+      }
+    },
+    {
+      "id": "prod-deploy",
+      "kind": "cli",
+      "name": "Production Deploy",
+      "shortDescription": "Deploy a production build to an external environment.",
+      "availability": "available",
+      "riskTags": [
+        "production",
+        "publish"
+      ],
+      "costClass": "high",
+      "metadata": {
+        "keywords": "deploy production publish"
+      }
+    },
+    {
+      "id": "offline-tool",
+      "kind": "native_tool",
+      "name": "Offline Tool",
+      "shortDescription": "Fixture capability that is unavailable.",
+      "availability": "unavailable",
+      "riskTags": [],
+      "costClass": "free"
+    }
+  ]
+}
