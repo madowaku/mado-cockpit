@@ -76,6 +76,8 @@ class AgentSession:
     last_message: str | None = None
     last_trace: str | None = None
     last_error: str | None = None
+    current_gate_id: str | None = None
+    gate_resume_status: str | None = None
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
 
@@ -255,6 +257,56 @@ class CapabilityBinding:
     resolution_id: str
     status: str = "bound"
     created_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class RecoveryAttempt:
+    strategy: str
+    status: str
+    detail: str
+    evidence_refs: list[str] = field(default_factory=list)
+    attempted_at: str = field(default_factory=utc_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class HumanQuestionGate:
+    id: str
+    mission_id: str | None
+    question: str
+    reason: str
+    materiality: str
+    status: str
+    choices: list[str] = field(default_factory=list)
+    impacts: dict[str, str] = field(default_factory=dict)
+    recommendation: str | None = None
+    safe_default: str | None = None
+    allow_choose_for_me: bool = False
+    consent_required: bool = False
+    operator_id: str | None = None
+    worker_id: str | None = None
+    task_id: str | None = None
+    recovery_attempts: list[RecoveryAttempt] = field(default_factory=list)
+    created_at: str = field(default_factory=utc_now)
+    resolved_at: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class GateResolution:
+    id: str
+    gate_id: str
+    choice: str
+    method: str
+    note: str | None = None
+    resolved_at: str = field(default_factory=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
