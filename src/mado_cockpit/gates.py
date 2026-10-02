@@ -43,6 +43,11 @@ _EXHAUSTED_ATTEMPT_STATUSES = {
     "no_match",
     "exhausted",
 }
+_ATTEMPT_STATUSES = {
+    "attempted",
+    "succeeded",
+    *_EXHAUSTED_ATTEMPT_STATUSES,
+}
 _TECHNICAL_JARGON = re.compile(
     r"\b("
     r"postgres(?:ql)?|sqlite|mysql|orm|ssr|csr|"
@@ -103,6 +108,9 @@ class HumanQuestionGateManager:
         attempts = list(
             recovery_attempts
         )
+        self._validate_recovery_attempts(
+            attempts
+        )
 
         if (
             implementation_detail
@@ -153,6 +161,17 @@ class HumanQuestionGateManager:
             )
 
         if materiality not in _HUMAN_OWNED:
+            if any(
+                attempt.status
+                == "succeeded"
+                for attempt in attempts
+            ):
+                return self._suppressed(
+                    reason="recovery_succeeded",
+                    materiality=materiality,
+                    resolution=None,
+                )
+
             missing = self._missing_recovery(
                 attempts
             )
@@ -209,6 +228,19 @@ class HumanQuestionGateManager:
         )
         attempts = list(
             recovery_attempts
+        )
+        if not reason.strip():
+            raise RuntimeError(
+                "Human Question Gate reason "
+                "must not be empty"
+            )
+        self._validate_choices(
+            normalized_choices,
+            impacts=(
+                impacts or {}
+            ),
+            recommendation=recommendation,
+            safe_default=safe_default,
         )
         evaluation = self.evaluate_candidate(
             question=question,
@@ -271,15 +303,6 @@ class HumanQuestionGateManager:
                 )
             )
             return evaluation
-
-        self._validate_choices(
-            normalized_choices,
-            impacts=(
-                impacts or {}
-            ),
-            recommendation=recommendation,
-            safe_default=safe_default,
-        )
 
         gate_id = (
             f"gate_{uuid4().hex[:12]}"
@@ -576,6 +599,35 @@ class HumanQuestionGateManager:
                 == "resolved"
             ),
         }
+
+    @staticmethod
+    def _validate_recovery_attempts(
+        attempts: list[
+            RecoveryAttempt
+        ],
+    ) -> None:
+        for attempt in attempts:
+            if (
+                attempt.strategy
+                not in _REQUIRED_RECOVERY
+            ):
+                raise RuntimeError(
+                    "Unsupported recovery strategy: "
+                    f"{attempt.strategy}"
+                )
+            if (
+                attempt.status
+                not in _ATTEMPT_STATUSES
+            ):
+                raise RuntimeError(
+                    "Unsupported recovery status: "
+                    f"{attempt.status}"
+                )
+            if not attempt.detail.strip():
+                raise RuntimeError(
+                    "Recovery attempt detail "
+                    "must not be empty"
+                )
 
     @staticmethod
     def _missing_recovery(
