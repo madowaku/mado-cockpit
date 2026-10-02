@@ -245,6 +245,46 @@ An open Gate freezes the Operator in `awaiting_human`. `operator advance` become
 
 `choose for me` means only "use this Gate's declared safe default." Gate resolution records a decision; it does not itself spend money, publish, delete data, send messages, or perform other external actions.
 
+
+### MCC-M0.8 Cockpit UI
+
+The v0.1 control plane now has a dependency-free local web cockpit.
+
+```text
+Browser
+  ↓ localhost
+Cockpit UI
+  ↓
+Python domain managers
+  ├─ Operator
+  ├─ Evidence
+  ├─ Handoff
+  ├─ Capability
+  ├─ Human Gate
+  └─ Event Spine
+```
+
+The first UI is intentionally **read-wide / write-narrow**.
+
+Visible surfaces include missions, Operator state and next action, Workers and bound capabilities, open Human Question Gates, evidence/handoff counts, and recent Event Spine entries.
+
+UI actions are limited to deterministic `operator advance`, explicit Human Gate choices, and a Gate's declared safe default.
+
+Agent launch, capability resolution, deployment, publishing, workspace deletion, and other higher-impact actions remain behind the existing CLI, policy, and Gate contracts.
+
+The UI uses only Python's standard library: `ThreadingHTTPServer` plus embedded vanilla HTML/CSS/JS. No frontend build toolchain is required.
+
+Security defaults:
+
+```text
+bind = 127.0.0.1
+remote bind = refused unless explicitly allowed
+POST = per-process random Cockpit token required
+CSP = local inline app policy
+frame embedding = denied
+cache = disabled
+```
+
 ## Quick start
 
 ```bash
@@ -486,6 +526,30 @@ mado-cockpit gate inspect <GATE_ID>
 
 MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop` closes a turn-based session only when no turn is executing.
 
+Launch the local Cockpit:
+
+```bash
+mado-cockpit ui --open
+```
+
+Default address:
+
+```text
+http://127.0.0.1:8765/
+```
+
+The Dashboard auto-refreshes every eight seconds and also exposes a manual Refresh control.
+
+Remote bind is refused unless it is deliberate and explicit:
+
+```bash
+mado-cockpit ui \
+  --host 0.0.0.0 \
+  --allow-remote
+```
+
+M0.8 remains designed primarily as a localhost control surface.
+
 ## Local state
 
 ```text
@@ -645,6 +709,26 @@ Gate resolution                  → Operator resumes prior state
 gate requested/resolved          → Event Spine persisted
 ```
 
+
+## MCC-M0.8 golden fixtures
+
+The Cockpit UI fixtures verify:
+
+```text
+control-plane state        → combined Dashboard snapshot
+project / mission / worker → visible in Dashboard API
+open Gate                  → visible in Dashboard API
+GET /                      → Cockpit HTML
+GET /api/dashboard         → local state JSON
+POST without token         → 403
+POST with token            → domain action allowed
+Gate resolve from UI       → Gate Manager contract used
+remote bind without opt-in → rejected
+UI CLI defaults            → 127.0.0.1:8765
+```
+
+The UI server fixture binds an ephemeral localhost port and uses only the Python standard library.
+
 ## Milestone path
 
 1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
@@ -655,6 +739,6 @@ gate requested/resolved          → Event Spine persisted
 6. **MCC-M0.5 Operator** — deterministic agent-controlled cockpit ✅
 7. **MCC-M0.6 Capability Pager Bridge** ✅
 8. **MCC-M0.7 Human Question Gate** ✅
-9. **MCC-M0.8 Cockpit UI**
+9. **MCC-M0.8 Cockpit UI** ✅
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
