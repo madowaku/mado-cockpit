@@ -24,6 +24,7 @@ from .operator import OperatorManager
 from .providers import CodexCLIProvider
 from .sessions import SessionManager
 from .store import CockpitStore
+from .ui import serve_ui
 from .worktrees import WorktreeManager
 
 
@@ -684,6 +685,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     operator_verdict.add_argument(
         "--qa-result",
+    )
+
+    ui = sub.add_parser(
+        "ui",
+        help="Run the local MADO Cockpit web UI",
+    )
+    ui.add_argument(
+        "--host",
+        default="127.0.0.1",
+    )
+    ui.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+    )
+    ui.add_argument(
+        "--allow-remote",
+        action="store_true",
+    )
+    ui.add_argument(
+        "--open",
+        action="store_true",
+        dest="open_browser",
     )
 
     sub.add_parser(
@@ -1527,6 +1551,20 @@ def main(
                 )
             )
             return 0
+
+    if args.command == "ui":
+        serve_ui(
+            root,
+            host=args.host,
+            port=args.port,
+            allow_remote=(
+                args.allow_remote
+            ),
+            open_browser=(
+                args.open_browser
+            ),
+        )
+        return 0
 
     if args.command == "status":
         snapshot = store.snapshot()
