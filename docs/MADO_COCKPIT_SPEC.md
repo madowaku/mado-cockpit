@@ -1734,6 +1734,7 @@ Delivered:
 - recent Event Spine view
 - deterministic Operator Advance action
 - Human Gate resolution action
+- free-form Human Gate input
 - safe-default Gate action
 - per-process POST token
 - localhost-only bind by default
@@ -1763,6 +1764,7 @@ READ:
 WRITE:
   deterministic operator advance
   explicit Human Gate choice
+  free-form Human Gate decision
   declared Gate safe_default
 ```
 
@@ -1915,6 +1917,9 @@ POST with token
 
 Gate resolve through UI
   → Gate Manager / Operator Manager contract
+
+free-form Gate
+  → text decision accepted through same contract
 
 0.0.0.0 without allow_remote
   → rejected
