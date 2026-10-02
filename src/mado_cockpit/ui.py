@@ -677,14 +677,22 @@ class CockpitDashboard:
     ) -> dict[str, Any]:
         base = self.store.snapshot()
         evidence_summary = self.evidence.summary()
-        evidence_summary["tasks"] = (
-            self.evidence.list_tasks()
+        tasks = self.evidence.list_tasks()
+        results = self.evidence.list_results()
+        bundles = self.evidence.list_bundles()
+        evidence_summary["tasks"] = tasks
+        evidence_summary["results"] = results
+        evidence_summary["bundles"] = bundles
+        evidence_summary["bundle_count"] = len(
+            bundles
         )
-        evidence_summary["results"] = (
-            self.evidence.list_results()
-        )
-        evidence_summary["bundles"] = (
-            self.evidence.list_bundles()
+        evidence_summary[
+            "validated_bundle_count"
+        ] = sum(
+            1
+            for bundle in bundles
+            if bundle.get("status")
+            == "validated"
         )
         return {
             **base,
@@ -1042,7 +1050,6 @@ def create_ui_server(
         host not in {
             "127.0.0.1",
             "localhost",
-            "::1",
         }
         and not allow_remote
     ):
