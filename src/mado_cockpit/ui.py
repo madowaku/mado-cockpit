@@ -55,6 +55,16 @@ body {
   font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 button, input, textarea { font: inherit; }
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #0d1824;
+  color: var(--text);
+  padding: 9px 10px;
+  outline: none;
+}
+input:focus { border-color: #42617f; }
 button {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -523,12 +533,19 @@ function renderGates() {
   el("gates").innerHTML = gates.map(item => {
     const g = item.gate;
     const impacts = g.impacts || {};
-    const choices = (g.choices || []).map(choice =>
+    const gateChoices = g.choices || [];
+    const choices = gateChoices.map(choice =>
       '<button class="choice-btn" data-gate="'+esc(g.id)+'" data-choice="'+esc(choice)+'">'+
         '<strong>'+esc(choice)+'</strong>'+
         (impacts[choice] ? '<span class="choice-impact">'+esc(impacts[choice])+'</span>' : '')+
       '</button>'
     ).join("");
+    const freeform = gateChoices.length === 0
+      ? '<div style="display:grid;grid-template-columns:1fr auto;gap:7px">'+
+          '<input data-gate-text="'+esc(g.id)+'" placeholder="Type the human decision">'+
+          '<button class="primary" data-gate-text-submit="'+esc(g.id)+'">Resolve</button>'+
+        '</div>'
+      : '';
     const safe = g.allow_choose_for_me
       ? '<button class="warn" data-gate-default="'+esc(g.id)+'">Choose safe default · '+esc(g.safe_default)+'</button>'
       : '';
@@ -536,7 +553,7 @@ function renderGates() {
       '<div class="row">'+badge(g.materiality,"warn")+(g.recommendation?badge("recommend: "+g.recommendation,"good"):"")+'</div>'+
       '<div class="question">'+esc(g.question)+'</div>'+
       '<div class="reason">'+esc(g.reason)+'</div>'+
-      '<div class="choice-grid">'+choices+safe+'</div>'+
+      '<div class="choice-grid">'+choices+freeform+safe+'</div>'+
     '</div>';
   }).join("") || '<div class="empty">No human decision needed ✦</div>';
 }
@@ -623,6 +640,30 @@ document.addEventListener("click", async (event) => {
         body: JSON.stringify({
           gate_id: choice.dataset.gate,
           choice: choice.dataset.choice
+        })
+      });
+      showToast("Human Gate resolved");
+      await refresh();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
+  }
+  const textSubmit = event.target.closest("[data-gate-text-submit]");
+  if (textSubmit) {
+    const gateId = textSubmit.dataset.gateTextSubmit;
+    const input = document.querySelector('[data-gate-text="'+CSS.escape(gateId)+'"]');
+    const value = input ? input.value.trim() : "";
+    if (!value) {
+      showToast("Enter a decision first", true);
+      return;
+    }
+    try {
+      await api("/api/gate/resolve", {
+        method: "POST",
+        body: JSON.stringify({
+          gate_id: gateId,
+          choice: value
         })
       });
       showToast("Human Gate resolved");
