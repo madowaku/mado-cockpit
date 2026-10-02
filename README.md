@@ -206,6 +206,45 @@ When a capability registry is active, `operator launch` fails closed if that Wor
 
 The real bridge lives at `scripts/system_one_capability_bridge.mjs`. It loads the local built `mado-system-one/dist/src/index.js` and executes the actual System One `CapabilityRegistry` and `CapabilityResolver`. The M0.6 bridge provider is deterministic and zero-quota, so integration can be exercised without consuming API credit.
 
+
+### MCC-M0.7 Human Question Gate
+
+MADO Cockpit now has a structured **human-attention firewall**.
+
+The Gate does not ask whenever the system is uncertain. It first decides whether the question belongs to the human at all.
+
+```text
+candidate decision
+      ↓
+implementation detail?
+      ├─ yes, no technical-control request → suppress
+      ↓
+consent required?
+      ├─ yes → ask
+      ↓
+material?
+      ├─ no → safe default / continue
+      ↓
+safe + reversible inference?
+      ├─ yes → record default / continue
+      ↓
+does the user know the answer?
+      ├─ no → system investigates first
+      ↓
+operational blocker?
+      ├─ yes → require recovery history
+      ↓
+Human Question Gate
+```
+
+Human-owned materialities are `privacy`, `cost`, `destructive`, `external_action`, and `core_meaning`.
+
+Operational `other` questions may surface only after `retry`, `alternative_capability`, `alternative_worker`, and `evidence_search` are exhausted. If any recovery succeeds, escalation is suppressed.
+
+An open Gate freezes the Operator in `awaiting_human`. `operator advance` becomes a no-op and `operator launch` is rejected until the Gate is resolved.
+
+`choose for me` means only "use this Gate's declared safe default." Gate resolution records a decision; it does not itself spend money, publish, delete data, send messages, or perform other external actions.
+
 ## Quick start
 
 ```bash
@@ -393,6 +432,58 @@ mado-cockpit operator capability <OPERATOR_ID> builder \
 
 The bridge itself is still zero-quota in M0.6: it uses a deterministic fixture provider *inside* the real System One resolver. This verifies the cross-repo contract without silently invoking a paid model.
 
+Open a human-owned Gate from an Operator:
+
+```bash
+mado-cockpit operator gate request <OPERATOR_ID> \
+  "This can start a paid service. Do you want to enable it, or stay on the free path?" \
+  --reason "Enabling it may create charges." \
+  --materiality cost \
+  --choice enable_paid \
+  --choice stay_free \
+  --impact "enable_paid=May create charges." \
+  --impact "stay_free=Keeps the zero-cost path." \
+  --recommend stay_free \
+  --safe-default stay_free \
+  --consent-required
+```
+
+Resolve explicitly:
+
+```bash
+mado-cockpit operator gate resolve <OPERATOR_ID> \
+  --choice stay_free
+```
+
+Or accept only the declared safe default:
+
+```bash
+mado-cockpit operator gate resolve <OPERATOR_ID> \
+  --choose-for-me
+```
+
+For an operational blocker, escalation requires exhausted recovery:
+
+```bash
+mado-cockpit operator gate request <OPERATOR_ID> \
+  "Should we stop this attempt or change the goal?" \
+  --reason "Automatic recovery paths are exhausted." \
+  --materiality other \
+  --choice stop \
+  --choice change_goal \
+  --attempt "retry=failed:Retry reproduced the blocker." \
+  --attempt "alternative_capability=no_match:No allowed capability matched." \
+  --attempt "alternative_worker=unavailable:No replacement worker is available." \
+  --attempt "evidence_search=exhausted:Existing evidence did not resolve the decision."
+```
+
+Inspect Gates at any time:
+
+```bash
+mado-cockpit gate list --status open
+mado-cockpit gate inspect <GATE_ID>
+```
+
 MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop` closes a turn-based session only when no turn is executing.
 
 ## Local state
@@ -432,6 +523,11 @@ MCC-M0.2 does **not** pretend to interrupt an already-running Codex turn. `stop`
 │  │  ├─ requests/
 │  │  ├─ resolutions/
 │  │  └─ bindings/
+│  ├─ gates/
+│  │  └─ <gate-id>/
+│  │     ├─ gate.json
+│  │     ├─ status.json
+│  │     └─ resolution.json
 │  └─ events.jsonl
 └─ worktrees/
    └─ <mission>-<worker>/
@@ -526,6 +622,29 @@ capability request/resolution  → Event Spine persisted
 
 The default tests do not require Node, System One, Laya, or model quota. The Node bridge is an opt-in local integration surface against a built `mado-system-one` checkout.
 
+
+## MCC-M0.7 golden fixtures
+
+The Human Question Gate fixtures verify:
+
+```text
+implementation detail           → suppressed
+safe reversible default         → suppressed
+user lacks system context        → investigate first
+partial recovery history         → escalation suppressed
+all recovery exhausted           → operational Gate opens
+recovery succeeds                → escalation suppressed
+cost consent                     → Gate opens immediately
+avoidable technical jargon      → rejected
+choose-for-me                    → declared safe_default only
+Gate request                     → immutable gate.json
+Operator Gate open               → awaiting_human
+operator advance while open      → no progress
+operator launch while open       → rejected
+Gate resolution                  → Operator resumes prior state
+gate requested/resolved          → Event Spine persisted
+```
+
 ## Milestone path
 
 1. **MCC-M0.0 Skeleton** — domain model, state store, CLI ✅
@@ -535,7 +654,7 @@ The default tests do not require Node, System One, Laya, or model quota. The Nod
 5. **MCC-M0.4 Builder → QA Handoff** — independent validation loop ✅
 6. **MCC-M0.5 Operator** — deterministic agent-controlled cockpit ✅
 7. **MCC-M0.6 Capability Pager Bridge** ✅
-8. **MCC-M0.7 Human Question Gate**
+8. **MCC-M0.7 Human Question Gate** ✅
 9. **MCC-M0.8 Cockpit UI**
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
