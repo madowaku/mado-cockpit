@@ -12,8 +12,14 @@ from .capabilities import (
     SystemOnePagerBridge,
 )
 from .evidence import EvidenceManager
+from .gates import HumanQuestionGateManager
 from .handoffs import HandoffManager
-from .models import Mission, Project, Worker
+from .models import (
+    Mission,
+    Project,
+    RecoveryAttempt,
+    Worker,
+)
 from .operator import OperatorManager
 from .providers import CodexCLIProvider
 from .sessions import SessionManager
@@ -351,6 +357,79 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    gate = sub.add_parser(
+        "gate",
+        help="Human Question Gate operations",
+    )
+    gate_sub = gate.add_subparsers(
+        dest="gate_command",
+        required=True,
+    )
+
+    gate_request = gate_sub.add_parser(
+        "request",
+        help="Evaluate and optionally open a Human Question Gate",
+    )
+    gate_request.add_argument("question")
+    gate_request.add_argument(
+        "--reason",
+        required=True,
+    )
+    _add_gate_candidate_args(
+        gate_request
+    )
+    gate_request.add_argument(
+        "--mission"
+    )
+    gate_request.add_argument(
+        "--operator"
+    )
+    gate_request.add_argument(
+        "--worker"
+    )
+    gate_request.add_argument(
+        "--task"
+    )
+
+    gate_list = gate_sub.add_parser(
+        "list",
+        help="List Human Question Gates",
+    )
+    gate_list.add_argument(
+        "--status",
+        choices=[
+            "open",
+            "resolved",
+        ],
+    )
+
+    gate_inspect = gate_sub.add_parser(
+        "inspect",
+        help="Inspect a Human Question Gate",
+    )
+    gate_inspect.add_argument("gate_id")
+
+    gate_resolve = gate_sub.add_parser(
+        "resolve",
+        help="Resolve a Human Question Gate",
+    )
+    gate_resolve.add_argument("gate_id")
+    gate_resolution = (
+        gate_resolve.add_mutually_exclusive_group(
+            required=True
+        )
+    )
+    gate_resolution.add_argument(
+        "--choice"
+    )
+    gate_resolution.add_argument(
+        "--choose-for-me",
+        action="store_true",
+    )
+    gate_resolve.add_argument(
+        "--note"
+    )
+
     capability = sub.add_parser(
         "capability",
         help="Capability Pager bridge operations",
@@ -529,6 +608,62 @@ def build_parser() -> argparse.ArgumentParser:
         operator_capability
     )
 
+    operator_gate = operator_sub.add_parser(
+        "gate",
+        help="Request or resolve the Operator Human Question Gate",
+    )
+    operator_gate_sub = (
+        operator_gate.add_subparsers(
+            dest="operator_gate_command",
+            required=True,
+        )
+    )
+
+    operator_gate_request = (
+        operator_gate_sub.add_parser(
+            "request",
+            help="Evaluate and optionally pause Operator for a human decision",
+        )
+    )
+    operator_gate_request.add_argument(
+        "operator_id"
+    )
+    operator_gate_request.add_argument(
+        "question"
+    )
+    operator_gate_request.add_argument(
+        "--reason",
+        required=True,
+    )
+    _add_gate_candidate_args(
+        operator_gate_request
+    )
+
+    operator_gate_resolve = (
+        operator_gate_sub.add_parser(
+            "resolve",
+            help="Resolve the Operator's current Human Question Gate",
+        )
+    )
+    operator_gate_resolve.add_argument(
+        "operator_id"
+    )
+    operator_resolution = (
+        operator_gate_resolve.add_mutually_exclusive_group(
+            required=True
+        )
+    )
+    operator_resolution.add_argument(
+        "--choice"
+    )
+    operator_resolution.add_argument(
+        "--choose-for-me",
+        action="store_true",
+    )
+    operator_gate_resolve.add_argument(
+        "--note"
+    )
+
     operator_verdict = operator_sub.add_parser(
         "verdict",
         help="Resolve the current QA handoff",
@@ -556,6 +691,178 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show cockpit status",
     )
     return parser
+
+
+def _add_gate_candidate_args(
+    parser: argparse.ArgumentParser,
+) -> None:
+    parser.add_argument(
+        "--materiality",
+        choices=[
+            "privacy",
+            "cost",
+            "destructive",
+            "external_action",
+            "core_meaning",
+            "other",
+        ],
+        default="other",
+    )
+    parser.add_argument(
+        "--choice",
+        action="append",
+        default=[],
+        dest="gate_choices",
+    )
+    parser.add_argument(
+        "--impact",
+        action="append",
+        default=[],
+        metavar="CHOICE=TEXT",
+    )
+    parser.add_argument(
+        "--recommend"
+    )
+    parser.add_argument(
+        "--safe-default"
+    )
+    parser.add_argument(
+        "--consent-required",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--implementation-detail",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--requested-technical-control",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--can-infer-safely",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--reversible-default-exists",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--not-material",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--user-lacks-context",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--attempt",
+        action="append",
+        default=[],
+        metavar="STRATEGY=STATUS:DETAIL",
+    )
+
+
+def _parse_impacts(
+    specs: list[str],
+) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for spec in specs:
+        choice, separator, detail = (
+            spec.partition("=")
+        )
+        if (
+            not separator
+            or not choice.strip()
+            or not detail.strip()
+        ):
+            raise RuntimeError(
+                "Impact must use "
+                "CHOICE=TEXT format: "
+                f"{spec}"
+            )
+        result[
+            choice.strip()
+        ] = detail.strip()
+    return result
+
+
+def _parse_recovery_attempts(
+    specs: list[str],
+) -> list[RecoveryAttempt]:
+    result: list[RecoveryAttempt] = []
+    for spec in specs:
+        strategy, separator, rest = (
+            spec.partition("=")
+        )
+        status, detail_separator, detail = (
+            rest.partition(":")
+        )
+        if (
+            not separator
+            or not detail_separator
+            or not strategy.strip()
+            or not status.strip()
+            or not detail.strip()
+        ):
+            raise RuntimeError(
+                "Recovery attempt must use "
+                "STRATEGY=STATUS:DETAIL format: "
+                f"{spec}"
+            )
+        result.append(
+            RecoveryAttempt(
+                strategy=strategy.strip(),
+                status=status.strip(),
+                detail=detail.strip(),
+            )
+        )
+    return result
+
+
+def _gate_request_kwargs(
+    args: argparse.Namespace,
+) -> dict[str, object]:
+    return {
+        "question": args.question,
+        "reason": args.reason,
+        "materiality": args.materiality,
+        "implementation_detail": (
+            args.implementation_detail
+        ),
+        "requested_technical_control": (
+            args.requested_technical_control
+        ),
+        "can_infer_safely": (
+            args.can_infer_safely
+        ),
+        "reversible_default_exists": (
+            args.reversible_default_exists
+        ),
+        "materially_changes_result": (
+            not args.not_material
+        ),
+        "user_has_context_to_answer": (
+            not args.user_lacks_context
+        ),
+        "consent_required": (
+            args.consent_required
+        ),
+        "choices": args.gate_choices,
+        "impacts": _parse_impacts(
+            args.impact
+        ),
+        "recommendation": (
+            args.recommend
+        ),
+        "safe_default": (
+            args.safe_default
+        ),
+        "recovery_attempts": (
+            _parse_recovery_attempts(
+                args.attempt
+            )
+        ),
+    }
 
 
 def _add_capability_pager_args(
@@ -969,6 +1276,54 @@ def main(
             )
             return 0
 
+    if args.command == "gate":
+        manager = HumanQuestionGateManager(
+            store
+        )
+
+        if args.gate_command == "request":
+            _print_json(
+                manager.request(
+                    **_gate_request_kwargs(
+                        args
+                    ),
+                    mission_id=args.mission,
+                    operator_id=args.operator,
+                    worker_id=args.worker,
+                    task_id=args.task,
+                )
+            )
+            return 0
+
+        if args.gate_command == "list":
+            _print_json(
+                manager.list(
+                    status=args.status
+                )
+            )
+            return 0
+
+        if args.gate_command == "inspect":
+            _print_json(
+                manager.inspect(
+                    args.gate_id
+                )
+            )
+            return 0
+
+        if args.gate_command == "resolve":
+            _print_json(
+                manager.resolve(
+                    args.gate_id,
+                    choice=args.choice,
+                    choose_for_me=(
+                        args.choose_for_me
+                    ),
+                    note=args.note,
+                )
+            )
+            return 0
+
     if args.command == "capability":
         manager = CapabilityManager(store)
 
@@ -1129,6 +1484,37 @@ def main(
             )
             return 0
 
+        if args.operator_command == "gate":
+            if (
+                args.operator_gate_command
+                == "request"
+            ):
+                _print_json(
+                    manager.request_gate(
+                        args.operator_id,
+                        **_gate_request_kwargs(
+                            args
+                        ),
+                    )
+                )
+                return 0
+
+            if (
+                args.operator_gate_command
+                == "resolve"
+            ):
+                _print_json(
+                    manager.resolve_gate(
+                        args.operator_id,
+                        choice=args.choice,
+                        choose_for_me=(
+                            args.choose_for_me
+                        ),
+                        note=args.note,
+                    )
+                )
+                return 0
+
         if args.operator_command == "verdict":
             _print_json(
                 manager.verdict(
@@ -1155,6 +1541,11 @@ def main(
         )
         snapshot["capabilities"] = (
             CapabilityManager(store).summary()
+        )
+        snapshot["gates"] = (
+            HumanQuestionGateManager(
+                store
+            ).summary()
         )
         _print_json(snapshot)
         return 0
