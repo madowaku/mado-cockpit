@@ -338,6 +338,8 @@ class OperatorState:
     qa_session_id: str | None = None
     last_action: str | None = None
     last_error: str | None = None
+    current_gate_id: str | None = None
+    gate_resume_status: str | None = None
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
 
