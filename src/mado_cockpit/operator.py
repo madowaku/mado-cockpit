@@ -11,6 +11,7 @@ from .capabilities import (
     CapabilityPolicy,
 )
 from .evidence import EvidenceManager
+from .gates import HumanQuestionGateManager
 from .handoffs import HandoffManager
 from .models import (
     Event,
@@ -50,6 +51,7 @@ class OperatorManager:
         self.evidence = EvidenceManager(store)
         self.handoffs = HandoffManager(store)
         self.capabilities = CapabilityManager(store)
+        self.gates = HumanQuestionGateManager(store)
         self.worktrees = WorktreeManager(store)
         self.operators_dir = (
             store.base / "operators"
@@ -265,6 +267,51 @@ class OperatorManager:
             in _TERMINAL_OPERATOR_STATES
         ):
             return self.inspect(
+                operator_id
+            )
+
+        if (
+            state["status"]
+            == "awaiting_human"
+        ):
+            gate_id = state.get(
+                "current_gate_id"
+            )
+            if not gate_id:
+                raise RuntimeError(
+                    "Operator is awaiting_human "
+                    "without a gate id"
+                )
+            gate = self.gates.inspect(
+                str(gate_id)
+            )
+            if (
+                gate["status"]["status"]
+                == "open"
+            ):
+                return self.inspect(
+                    operator_id
+                )
+
+            resume_status = (
+                state.get(
+                    "gate_resume_status"
+                )
+                or "awaiting_builder"
+            )
+            self._update_state(
+                operator_id,
+                status=str(
+                    resume_status
+                ),
+                current_gate_id=None,
+                gate_resume_status=None,
+                last_action=(
+                    "human_gate_resolved"
+                ),
+                last_error=None,
+            )
+            return self.advance(
                 operator_id
             )
 
@@ -535,6 +582,18 @@ class OperatorManager:
         plan = self._plan(
             operator_id
         )
+        state = self._state(
+            operator_id
+        )
+        if (
+            state["status"]
+            == "awaiting_human"
+        ):
+            raise RuntimeError(
+                "Operator is waiting for "
+                "Human Question Gate resolution"
+            )
+
         role = self._normalize_role(
             role
         )
@@ -762,6 +821,223 @@ class OperatorManager:
         return {
             "capability": resolved,
             "operator": self.inspect(
+                operator_id
+            ),
+        }
+
+    def request_gate(
+        self,
+        operator_id: str,
+        *,
+        question: str,
+        reason: str,
+        materiality: str,
+        choices: Iterable[str] = (),
+        impacts: dict[str, str] | None = None,
+        recommendation: str | None = None,
+        safe_default: str | None = None,
+        consent_required: bool = False,
+        implementation_detail: bool = False,
+        requested_technical_control: bool = False,
+        can_infer_safely: bool = False,
+        reversible_default_exists: bool = False,
+        materially_changes_result: bool = True,
+        user_has_context_to_answer: bool = True,
+        recovery_attempts: Iterable[Any] = (),
+    ) -> dict[str, Any]:
+        plan = self._plan(
+            operator_id
+        )
+        state = self._state(
+            operator_id
+        )
+        if (
+            state["status"]
+            in _TERMINAL_OPERATOR_STATES
+        ):
+            raise RuntimeError(
+                "Cannot open a Human Question "
+                "Gate for a terminal Operator"
+            )
+        if (
+            state["status"]
+            == "awaiting_human"
+        ):
+            raise RuntimeError(
+                "Operator already has an open "
+                "Human Question Gate"
+            )
+
+        worker_id, task_id = (
+            self._gate_subject(
+                operator_id
+            )
+        )
+        requested = self.gates.request(
+            question=question,
+            reason=reason,
+            materiality=materiality,
+            mission_id=str(
+                plan["mission_id"]
+            ),
+            operator_id=operator_id,
+            worker_id=worker_id,
+            task_id=task_id,
+            implementation_detail=(
+                implementation_detail
+            ),
+            requested_technical_control=(
+                requested_technical_control
+            ),
+            can_infer_safely=(
+                can_infer_safely
+            ),
+            reversible_default_exists=(
+                reversible_default_exists
+            ),
+            materially_changes_result=(
+                materially_changes_result
+            ),
+            user_has_context_to_answer=(
+                user_has_context_to_answer
+            ),
+            consent_required=(
+                consent_required
+            ),
+            choices=choices,
+            impacts=impacts,
+            recommendation=(
+                recommendation
+            ),
+            safe_default=safe_default,
+            recovery_attempts=(
+                recovery_attempts
+            ),
+        )
+
+        if requested["ask"]:
+            gate_id = str(
+                requested["gate"]["id"]
+            )
+            self._update_state(
+                operator_id,
+                status="awaiting_human",
+                current_gate_id=gate_id,
+                gate_resume_status=str(
+                    state["status"]
+                ),
+                last_action=(
+                    "human_gate_requested"
+                ),
+                last_error=None,
+            )
+            self._event(
+                plan,
+                "operator.gate.requested",
+                {
+                    "operator_id": (
+                        operator_id
+                    ),
+                    "gate_id": gate_id,
+                    "resume_status": (
+                        state["status"]
+                    ),
+                },
+            )
+        else:
+            self._update_state(
+                operator_id,
+                last_action=(
+                    "human_gate_suppressed:"
+                    f"{requested['gate_reason']}"
+                ),
+                last_error=None,
+            )
+
+        return {
+            "gate": requested,
+            "operator": self.inspect(
+                operator_id
+            ),
+        }
+
+    def resolve_gate(
+        self,
+        operator_id: str,
+        *,
+        choice: str | None = None,
+        choose_for_me: bool = False,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        plan = self._plan(
+            operator_id
+        )
+        state = self._state(
+            operator_id
+        )
+        gate_id = state.get(
+            "current_gate_id"
+        )
+        if (
+            state["status"]
+            != "awaiting_human"
+            or not gate_id
+        ):
+            raise RuntimeError(
+                "Operator is not waiting on "
+                "a Human Question Gate"
+            )
+
+        resolved = self.gates.resolve(
+            str(gate_id),
+            choice=choice,
+            choose_for_me=(
+                choose_for_me
+            ),
+            note=note,
+        )
+        resume_status = (
+            state.get(
+                "gate_resume_status"
+            )
+            or "awaiting_builder"
+        )
+        self._update_state(
+            operator_id,
+            status=str(
+                resume_status
+            ),
+            current_gate_id=None,
+            gate_resume_status=None,
+            last_action=(
+                "human_gate_resolved"
+            ),
+            last_error=None,
+        )
+        self._event(
+            plan,
+            "operator.gate.resolved",
+            {
+                "operator_id": operator_id,
+                "gate_id": gate_id,
+                "choice": (
+                    resolved[
+                        "resolution"
+                    ]["choice"]
+                ),
+                "method": (
+                    resolved[
+                        "resolution"
+                    ]["method"]
+                ),
+                "resume_status": (
+                    resume_status
+                ),
+            },
+        )
+        return {
+            "gate": resolved,
+            "operator": self.advance(
                 operator_id
             ),
         }
@@ -1072,6 +1348,19 @@ class OperatorManager:
             ),
             "handoff": handoff,
             "qa_task": qa_task,
+            "human_gate": (
+                self.gates.inspect(
+                    str(
+                        state[
+                            "current_gate_id"
+                        ]
+                    )
+                )
+                if state.get(
+                    "current_gate_id"
+                )
+                else None
+            ),
             "next_action": self._next_action(
                 state,
             ),
@@ -1173,6 +1462,61 @@ class OperatorManager:
             )
         except RuntimeError:
             return None
+
+    def _gate_subject(
+        self,
+        operator_id: str,
+    ) -> tuple[str | None, str | None]:
+        plan = self._plan(
+            operator_id
+        )
+        state = self._state(
+            operator_id
+        )
+
+        if state.get(
+            "handoff_id"
+        ):
+            handoff = self.handoffs.inspect(
+                str(
+                    state["handoff_id"]
+                )
+            )
+            if (
+                state["status"]
+                in {
+                    "awaiting_qa",
+                    "qa_attention",
+                    "awaiting_verdict",
+                }
+            ):
+                return (
+                    str(
+                        plan[
+                            "qa_worker_id"
+                        ]
+                    ),
+                    str(
+                        handoff[
+                            "handoff"
+                        ][
+                            "qa_task_id"
+                        ]
+                    ),
+                )
+
+        return (
+            str(
+                plan[
+                    "builder_worker_id"
+                ]
+            ),
+            str(
+                plan[
+                    "builder_task_id"
+                ]
+            ),
+        )
 
     @staticmethod
     def _normalize_role(
@@ -1331,6 +1675,9 @@ class OperatorManager:
             ),
             "awaiting_verdict": (
                 "submit_qa_verdict"
+            ),
+            "awaiting_human": (
+                "resolve_human_question_gate"
             ),
             "needs_fix": (
                 "revise_builder_task"
