@@ -186,6 +186,10 @@ def test_ui_server_serves_dashboard_and_resolves_gate(
                 "Human Gates"
                 in html
             )
+            assert (
+                "data-gate-text-submit"
+                in html
+            )
 
         status, dashboard = request_json(
             base + "/api/dashboard"
@@ -260,3 +264,50 @@ def test_ui_cli_command_defaults_to_localhost():
     assert args.port == 8765
     assert args.allow_remote is False
     assert args.open_browser is False
+
+
+def test_ui_resolves_free_form_gate(
+    tmp_path,
+):
+    store = setup_store(tmp_path)
+    opened = HumanQuestionGateManager(
+        store
+    ).request(
+        question=(
+            "What should the release label be?"
+        ),
+        reason=(
+            "The final label is a human-facing "
+            "product decision."
+        ),
+        materiality="core_meaning",
+        mission_id="MCC-M0.8",
+        materially_changes_result=True,
+        user_has_context_to_answer=True,
+    )
+
+    server, ui = create_ui_server(
+        tmp_path,
+        host="127.0.0.1",
+        port=0,
+        token="fixture-token",
+    )
+    try:
+        resolved = ui.resolve_gate(
+            {
+                "gate_id": (
+                    opened["gate"]["id"]
+                ),
+                "choice": "MADO Cockpit v0.1",
+            }
+        )
+        assert (
+            resolved["resolution"]["choice"]
+            == "MADO Cockpit v0.1"
+        )
+        assert (
+            resolved["status"]["status"]
+            == "resolved"
+        )
+    finally:
+        server.server_close()
