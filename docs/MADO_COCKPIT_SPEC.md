@@ -273,6 +273,59 @@ A durable Worker-to-capability binding created only after Cockpit policy permits
 
 Bindings are the execution boundary consumed by Operator launch.
 
+### Recovery Attempt
+
+A structured record of an automated recovery path tried before human escalation.
+
+MCC-M0.7 standard strategies:
+
+- `retry`
+- `alternative_capability`
+- `alternative_worker`
+- `evidence_search`
+
+Statuses are:
+
+- `attempted`
+- `succeeded`
+- `failed`
+- `unavailable`
+- `no_match`
+- `exhausted`
+
+### Human Question Gate
+
+An immutable, human-answerable decision request created only when the decision actually belongs to a human.
+
+It records:
+
+- gate ID
+- mission / Operator / Worker / Task context
+- question
+- reason
+- materiality
+- choices
+- per-choice impact
+- optional recommendation
+- optional safe default
+- choose-for-me permission
+- consent-required flag
+- recovery attempts
+- creation timestamp
+
+### Gate Resolution
+
+A separate record containing:
+
+- resolution ID
+- gate ID
+- selected choice
+- resolution method: `human | safe_default`
+- optional note
+- resolved timestamp
+
+The original `gate.json` is never rewritten when a decision is resolved.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -415,19 +468,158 @@ Mission-specific evidence may include:
 
 ## Human Question Gate
 
-Human escalation should happen only after automated recovery paths have been attempted.
+The Gate protects against two opposite failure modes:
+
+1. **question spam**: forwarding implementation details and system facts to the human;
+2. **silent overreach**: deciding privacy, spend, destructive behavior, external actions, or core product meaning without the human.
+
+Decision order:
 
 ```text
-Retry
+candidate decision
+      ↓
+implementation detail?
+      ├─ yes, user did not request technical control
+      │    → suppress
+      ↓
+consent required?
+      ├─ yes
+      │    → ask
+      ↓
+material to outcome?
+      ├─ no
+      │    → safe default / continue
+      ↓
+safe + reversible inference?
+      ├─ yes
+      │    → record default / continue
+      ↓
+does the human have context to answer?
+      ├─ no
+      │    → system investigates first
+      ↓
+operational "other" decision?
+      ├─ yes
+      │    → require exhausted recovery sequence
+      ↓
+Human Question Gate
+```
+
+### Human-owned materialities
+
+MCC-M0.7 recognizes:
+
+- `privacy`
+- `cost`
+- `destructive`
+- `external_action`
+- `core_meaning`
+- `other`
+
+The first five are intrinsically human-owned when unresolved and material.
+
+`other` is reserved for operational ambiguity. It may surface only after the standard recovery sequence is exhausted.
+
+### Operational recovery contract
+
+Before an `other` Gate may open, Cockpit requires evidence that all four strategies are exhausted:
+
+```text
+retry
   ↓
-Alternative Capability
+alternative_capability
   ↓
-Alternative Worker
+alternative_worker
   ↓
-Existing Evidence Search
+evidence_search
   ↓
 Human Question Gate
 ```
+
+Exhausted statuses are:
+
+```text
+failed
+unavailable
+no_match
+exhausted
+```
+
+If any recovery attempt reports `succeeded`, human escalation is suppressed.
+
+### Human-language contract
+
+User-facing questions should be phrased in outcome language, not avoidable implementation jargon.
+
+Suppressed by default:
+
+```text
+"PostgreSQL or SQLite?"
+"Which ORM?"
+"SSR or CSR?"
+```
+
+Allowed examples:
+
+```text
+"Should anyone with the link be able to open this, or only people you invite?"
+"This can start a paid service. Do you want to enable it, or stay on the free path?"
+"Should deleted items disappear permanently, or stay recoverable?"
+```
+
+Implementation detail may surface only when the user explicitly requested technical control.
+
+### Choose-for-me contract
+
+A Gate exposes choose-for-me only when `safe_default` is declared.
+
+```text
+choose_for_me
+  → select safe_default
+  → record method=safe_default
+```
+
+It does not grant arbitrary decision authority.
+
+For consent-sensitive questions, the safe default should be the non-escalating option such as `stay_free`, `do_not_send`, or `keep_recoverable`.
+
+Resolving a Gate records a decision only. It does not itself execute billing, publication, deletion, messaging, deployment, or another external action.
+
+### Immutable Gate storage
+
+```text
+gates/<gate-id>/
+├─ gate.json        immutable question/context
+├─ status.json      open | resolved
+└─ resolution.json  final human/default decision
+```
+
+### Operator integration
+
+Opening an Operator Gate stores the current Operator status as `gate_resume_status`, then moves to:
+
+```text
+awaiting_human
+```
+
+While the Gate remains open:
+
+- `operator advance` makes no progress;
+- `operator launch` is rejected;
+- Operator inspection exposes the current Gate;
+- `next_action = resolve_human_question_gate`.
+
+After resolution:
+
+```text
+awaiting_human
+  ↓ gate resolved
+restore gate_resume_status
+  ↓
+deterministic operator advance
+```
+
+The Gate is attached to the active Builder Task by default, or the current QA Task when the Operator is in a QA phase.
 
 ## Event spine
 
@@ -476,7 +668,10 @@ Initial canonical event types:
 - operator.blocked
 - operator.failed
 - operator.capability.resolved
+- operator.gate.requested
+- operator.gate.resolved
 - gate.requested
+- gate.suppressed
 - gate.resolved
 
 ## Local state
@@ -514,6 +709,11 @@ Initial canonical event types:
 │  │  ├─ requests/
 │  │  ├─ resolutions/
 │  │  └─ bindings/
+│  ├─ gates/
+│  │  └─ <gate-id>/
+│  │     ├─ gate.json
+│  │     ├─ status.json
+│  │     └─ resolution.json
 │  └─ events.jsonl
 └─ worktrees/
    ├─ <mission>-<worker>/
@@ -1374,9 +1574,130 @@ capability lifecycle
 
 The default fixture suite consumes no model quota.
 
-### MCC-M0.7 Human Question Gate
+### MCC-M0.7 Human Question Gate ✅
 
-Make human escalation inspectable and structured.
+Delivered:
+
+- `RecoveryAttempt` domain model
+- `HumanQuestionGate` domain model
+- `GateResolution` domain model
+- MADO Vibe Shipping question-discipline rules
+- materiality classification
+- human-language linting
+- safe reversible default suppression
+- system-should-investigate-first suppression
+- consent-required escalation
+- four-stage operational recovery requirement
+- recovery-success suppression
+- immutable Gate request storage
+- separate Gate status and resolution
+- safe-default-only choose-for-me
+- standalone Gate CLI
+- Operator Gate request/resolve CLI
+- Operator `awaiting_human` state
+- launch/advance pause while Gate is open
+- deterministic resume after resolution
+- Gate lifecycle events
+- golden fixtures for interruption precision
+
+### M0.7 decision outcomes
+
+```text
+implementation detail
+  → suppressed
+
+non-material decision
+  → suppressed
+
+safe reversible default
+  → suppressed + recorded default
+
+human lacks system context
+  → suppressed + investigate first
+
+operational blocker + incomplete recovery
+  → suppressed + missing recovery list
+
+operational blocker + recovery succeeded
+  → suppressed
+
+operational blocker + all recovery exhausted
+  → Gate open
+
+privacy/cost/destructive/external/core meaning
+  + unresolved + material
+  → Gate open
+
+consent required
+  → Gate open
+```
+
+### M0.7 Operator loop
+
+```text
+Operator running
+  ↓
+Gate candidate
+  ↓
+Gate Manager
+  ├─ suppress → Operator continues
+  └─ ask
+       ↓
+  awaiting_human
+       ↓
+  Human choice / safe default
+       ↓
+  Gate Resolution
+       ↓
+  restore prior Operator state
+       ↓
+  deterministic advance
+```
+
+### M0.7 golden fixtures
+
+```text
+technical database choice
+  → suppressed
+
+safe reversible layout choice
+  → suppressed
+
+unknown service limit
+  → system_should_resolve_first
+
+partial operational recovery
+  → recovery_required
+  → Gate not opened
+
+all four recovery paths exhausted
+  → operational Gate opens
+
+successful retry
+  → recovery_succeeded
+  → Gate not opened
+
+paid service decision
+  → consent Gate opens
+  → choose-for-me selects stay_free
+
+avoidable technical jargon
+  → rejected from human-facing Gate
+
+Operator privacy Gate
+  → awaiting_human
+  → launch rejected
+  → advance no-op
+  → resolve
+  → awaiting_builder restored
+
+gate.json
+  → unchanged after resolution
+
+Event Spine
+  → gate.requested
+  → gate.resolved
+```
 
 ### MCC-M0.8 Cockpit UI
 
