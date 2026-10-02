@@ -358,6 +358,27 @@ class CockpitStore:
                 + "\n"
             )
 
+    def list_events(
+        self,
+        *,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        if limit < 1:
+            raise RuntimeError(
+                "Event limit must be at least 1"
+            )
+        if not self.events_file.exists():
+            return []
+
+        events = [
+            json.loads(line)
+            for line in self.events_file.read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.strip()
+        ]
+        return events[-limit:]
+
     def event_count(self) -> int:
         if not self.events_file.exists():
             return 0
