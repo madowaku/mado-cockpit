@@ -326,6 +326,23 @@ A separate record containing:
 
 The original `gate.json` is never rewritten when a decision is resolved.
 
+### Cockpit Dashboard Snapshot
+
+MCC-M0.8 adds a derived, non-persistent read model for the local UI.
+
+A Dashboard snapshot combines:
+
+- Project / Missions
+- Workers / Workspaces / Sessions
+- Operators
+- Tasks / Results / Evidence Bundles
+- Handoffs
+- Capability registry and Worker bindings
+- Human Question Gates
+- recent Event Spine entries
+
+The UI does not introduce a second source of truth. It reads the existing control-plane state and calls the existing domain managers for writes.
+
 ### Event
 
 An append-only record of meaningful cockpit state transitions.
@@ -1699,9 +1716,240 @@ Event Spine
   → gate.resolved
 ```
 
-### MCC-M0.8 Cockpit UI
+### MCC-M0.8 Cockpit UI ✅
 
-Only after the underlying control plane is stable, expose it in a graphical cockpit.
+MCC-M0.8 exposes the stabilized control plane through a dependency-free localhost web cockpit.
+
+Delivered:
+
+- `CockpitDashboard` derived read model
+- `CockpitUI` action boundary
+- `ThreadingHTTPServer` local server
+- embedded responsive HTML/CSS/JavaScript
+- Mission filtering
+- Operator cards with status and next action
+- Worker and Capability binding cards
+- open Human Question Gate panel
+- evidence and Handoff production summary
+- recent Event Spine view
+- deterministic Operator Advance action
+- Human Gate resolution action
+- safe-default Gate action
+- per-process POST token
+- localhost-only bind by default
+- explicit remote-bind opt-in
+- CSP / no-cache / frame-deny headers
+- `mado-cockpit ui` CLI command
+- HTTP and dashboard golden fixtures
+
+### UI principle: read-wide / write-narrow
+
+M0.8 intentionally exposes more state than actions.
+
+```text
+READ:
+  missions
+  operators
+  workers
+  workspaces
+  sessions
+  capabilities
+  tasks
+  evidence
+  handoffs
+  human gates
+  event spine
+
+WRITE:
+  deterministic operator advance
+  explicit Human Gate choice
+  declared Gate safe_default
+```
+
+Not exposed as direct M0.8 UI actions:
+
+- Agent launch / resume
+- Capability resolution
+- workspace deletion
+- Git push
+- publication
+- deployment
+- billing-bearing actions
+- external messaging
+
+Those remain behind the CLI and the existing policy / Human Gate contracts.
+
+The UI therefore cannot become a shortcut around the control plane it is meant to visualize.
+
+### Local web architecture
+
+```text
+Browser
+  ↓ HTTP on localhost
+Cockpit UI server
+  ↓
+CockpitDashboard
+  ↓ reads
+.mado/cockpit/*
+
+Browser POST
+  ↓ token required
+CockpitUI action method
+  ↓
+existing domain manager
+  ↓
+state + Event Spine
+```
+
+There is no separate UI database and no frontend state persistence.
+
+### Dashboard layout
+
+The first screen prioritizes human attention rather than provider identity.
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Project / localhost state / Refresh                        │
+├───────────────┬────────────────────────────────────────────┤
+│ Missions      │ KPI strip                                  │
+│ filter        ├──────────────────────────┬─────────────────┤
+│               │ Operators                │ Human Gates     │
+│               │ state + next action      │ choices/impact  │
+│               ├──────────────────────────┼─────────────────┤
+│               │ Workers + Capabilities   │ Evidence        │
+│               ├──────────────────────────┴─────────────────┤
+│               │ Event Spine                                │
+└───────────────┴────────────────────────────────────────────┘
+```
+
+The UI auto-refreshes every eight seconds and offers manual refresh.
+
+### HTTP surface
+
+Read endpoints:
+
+```text
+GET /
+GET /api/dashboard
+```
+
+Write endpoints:
+
+```text
+POST /api/operator/advance
+POST /api/gate/resolve
+```
+
+Gate resolution is Operator-aware. If a Gate belongs to an Operator, the UI calls `OperatorManager.resolve_gate` so the prior Operator state is restored and deterministic execution resumes through the same M0.7 contract.
+
+### Security boundary
+
+Default:
+
+```text
+host = 127.0.0.1
+port = 8765
+```
+
+A non-local bind is rejected unless `allow_remote=True` / `--allow-remote` is explicit.
+
+Every server process creates a random POST token. UI write requests must supply it in:
+
+```text
+X-Mado-Cockpit-Token
+```
+
+Security response headers include:
+
+- Content Security Policy
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Cache-Control: no-store`
+
+M0.8 is a localhost-first development cockpit, not an authenticated multi-user web service.
+
+### Dependency contract
+
+M0.8 adds no runtime dependency.
+
+```text
+Python standard library
+  ├─ http.server
+  ├─ threading
+  ├─ urllib.parse
+  └─ webbrowser
+
+Frontend
+  ├─ HTML
+  ├─ CSS
+  └─ vanilla JavaScript
+```
+
+This keeps setup aligned with the non-engineer-friendly goal:
+
+```bash
+pip install -e ".[dev]"
+mado-cockpit ui --open
+```
+
+### M0.8 golden fixtures
+
+```text
+Cockpit state
+  → Dashboard aggregate
+
+Mission / Worker / Gate
+  → Dashboard API
+
+GET /
+  → UI HTML
+
+GET /api/dashboard
+  → JSON control-plane snapshot
+
+POST without token
+  → 403
+
+POST with token
+  → domain operation
+
+Gate resolve through UI
+  → Gate Manager / Operator Manager contract
+
+0.0.0.0 without allow_remote
+  → rejected
+
+CLI ui defaults
+  → 127.0.0.1:8765
+```
+
+The HTTP fixture binds only an ephemeral localhost port.
+
+### v0.1 completion
+
+M0.8 completes the original v0.1 spine:
+
+```text
+State
+  ↓
+Isolated Workspace
+  ↓
+Agent Session
+  ↓
+Evidence
+  ↓
+Independent QA
+  ↓
+Operator
+  ↓
+Capability Pager
+  ↓
+Human Question Gate
+  ↓
+Cockpit UI
+```
+
+The next phase can focus on dogfooding, live visual verification, richer read models, and carefully promoted actions rather than adding more foundational layers.
 
 ## Non-goals for v0.1
 
