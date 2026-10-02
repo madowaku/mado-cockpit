@@ -476,3 +476,59 @@ def test_gate_events_record_requested_and_resolved(
     ]
     assert "gate.requested" in event_types
     assert "gate.resolved" in event_types
+
+
+def test_recovery_success_suppresses_human_escalation(
+    tmp_path,
+):
+    manager = HumanQuestionGateManager(
+        setup_store(tmp_path)
+    )
+
+    result = manager.request(
+        question="Should we change the goal?",
+        reason="A retry was attempted.",
+        materiality="other",
+        materially_changes_result=True,
+        user_has_context_to_answer=True,
+        recovery_attempts=[
+            RecoveryAttempt(
+                strategy="retry",
+                status="succeeded",
+                detail="Retry completed successfully.",
+            )
+        ],
+    )
+
+    assert result["ask"] is False
+    assert (
+        result["gate_reason"]
+        == "recovery_succeeded"
+    )
+
+
+def test_invalid_recovery_status_is_rejected(
+    tmp_path,
+):
+    manager = HumanQuestionGateManager(
+        setup_store(tmp_path)
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Unsupported recovery status",
+    ):
+        manager.request(
+            question="Should we change the goal?",
+            reason="Invalid recovery metadata.",
+            materiality="other",
+            materially_changes_result=True,
+            user_has_context_to_answer=True,
+            recovery_attempts=[
+                RecoveryAttempt(
+                    strategy="retry",
+                    status="maybe",
+                    detail="Ambiguous status.",
+                )
+            ],
+        )
