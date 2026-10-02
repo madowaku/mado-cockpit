@@ -268,7 +268,7 @@ The first UI is intentionally **read-wide / write-narrow**.
 
 Visible surfaces include missions, Operator state and next action, Workers and bound capabilities, open Human Question Gates, evidence/handoff counts, and recent Event Spine entries.
 
-UI actions are limited to deterministic `operator advance`, explicit Human Gate choices, and a Gate's declared safe default.
+UI actions are limited to deterministic `operator advance`, explicit Human Gate choices, free-form Human Gate decisions, and a Gate's declared safe default.
 
 Agent launch, capability resolution, deployment, publishing, workspace deletion, and other higher-impact actions remain behind the existing CLI, policy, and Gate contracts.
 
@@ -723,6 +723,7 @@ GET /api/dashboard         → local state JSON
 POST without token         → 403
 POST with token            → domain action allowed
 Gate resolve from UI       → Gate Manager contract used
+free-form Gate             → text decision resolved
 remote bind without opt-in → rejected
 UI CLI defaults            → 127.0.0.1:8765
 ```
