@@ -1,0 +1,9 @@
+{
+  "mado-cockpit-space": {
+    "command": "mado-cockpit-space-mcp",
+    "args": [
+      "--transport",
+      "stdio"
+    ]
+  }
+}
