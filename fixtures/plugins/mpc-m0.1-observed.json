@@ -1,0 +1,136 @@
+{
+  "source": "plugin_management.search_plugins",
+  "complete": false,
+  "observed_at": "2026-10-03T13:00:00Z",
+  "metadata": {
+    "note": "Search-derived fixture; not guaranteed to be exhaustive."
+  },
+  "plugins": [
+    {
+      "id": "plugin_connector_1p_1a69035c238881919c4190932b2df699",
+      "name": "github",
+      "display_name": "GitHub",
+      "description": "Inspect repositories, triage pull requests and issues, debug CI, and publish changes.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugins~Plugin_60aea7460bd4819199fd97a9553a5e12",
+      "name": "superpowers",
+      "display_name": "Superpowers",
+      "description": "Planning, TDD, debugging, and collaboration workflows.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_asdk_app_69ef18c674308191a2f952431f91ea61",
+      "name": "context7",
+      "display_name": "Context7",
+      "description": "Fetch up-to-date documentation and code examples.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_connector_1p_32dba5a7095c8191adca04ee30276304",
+      "name": "openai-developers",
+      "display_name": "OpenAI Developers",
+      "description": "Develop AI apps and agents with OpenAI best practices.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_connector_1p_ab21a553bfbc81919ea8fd1858e3ffa7",
+      "name": "google-drive",
+      "display_name": "Google Drive",
+      "description": "Use Google Drive as the entrypoint for Docs, Sheets, Slides, and Drive files.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_connector_68df038e0ba48191908c8434991bbac2",
+      "name": "figma",
+      "display_name": "Figma",
+      "description": "Create, review, and implement designs from ChatGPT and Codex.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_asdk_app_6ab242dbeb5c8191ba5277534ef0c570",
+      "name": "tldraw",
+      "display_name": "tldraw",
+      "description": "Diagram codebases, flows, wireframes, and data on an editable canvas.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_connector_68df33b1a2d081918778431a9cfca8ba",
+      "name": "canva",
+      "display_name": "Canva",
+      "description": "Create and refine designs through natural conversation.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_asdk_app_69312da8e4dc81919370cb86fd172b6c",
+      "name": "adobe",
+      "display_name": "Adobe",
+      "description": "Edit creative assets, PDFs, photos, and video.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_asdk_app_699caef2d680819188727b0ddbb349dd",
+      "name": "posthog",
+      "display_name": "PostHog",
+      "description": "Product analytics, feature flags, experiments, error tracking, surveys, and logs.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": true
+    },
+    {
+      "id": "plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609",
+      "name": "firecrawl",
+      "display_name": "Firecrawl",
+      "description": "Search and access structured web, paper, and repository data.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": false
+    },
+    {
+      "id": "plugin_connector_1p_f8509de903288191b14a160c6c5d20b0",
+      "name": "google-calendar",
+      "display_name": "Google Calendar",
+      "description": "Scheduling, availability, daily briefs, and event management.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": false
+    },
+    {
+      "id": "plugin_asdk_app_6a502589384081919c5decf93496c9d1",
+      "name": "railway",
+      "display_name": "Railway",
+      "description": "Create, launch, inspect, and troubleshoot hosted applications.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": false
+    },
+    {
+      "id": "plugin_asdk_app_6a576f075ec4819196c203b7049542be",
+      "name": "gitbook",
+      "display_name": "GitBook",
+      "description": "Create, edit, review, and publish documentation sites and OpenAPI content.",
+      "status": "ENABLED",
+      "installation_policy": "AVAILABLE",
+      "installed": false
+    }
+  ]
+}

@@ -15,6 +15,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
+mado-plugin-inventory = "mado_cockpit.plugin_inventory:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
