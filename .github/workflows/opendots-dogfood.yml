@@ -79,7 +79,12 @@ jobs:
           MADO_COCKPIT_PYTHON: python
         run: |
           cat > /tmp/mado-smoke.ts <<'TS'
-          import { callMadoCockpit } from process.cwd() + '/src/server/mado-cockpit-caller.ts';
+          import { pathToFileURL } from 'node:url';
+
+          const moduleUrl = pathToFileURL(
+            process.cwd() + '/src/server/mado-cockpit-caller.ts',
+          ).href;
+          const { callMadoCockpit } = await import(moduleUrl);
 
           const result = await callMadoCockpit({
             schema: 'mado.opendots.tool-call.v1',
