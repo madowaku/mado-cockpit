@@ -1,0 +1,112 @@
+name: OpenDots Dogfood
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/opendots-dogfood.yml"
+      - "integrations/opendots/**"
+      - "fixtures/opendots/**"
+      - "src/mado_cockpit/opendots*.py"
+      - "tests/test_opendots*.py"
+
+permissions:
+  contents: read
+
+jobs:
+  real-opendots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout mado-cockpit
+        uses: actions/checkout@v4
+        with:
+          path: cockpit
+
+      - name: Checkout real OpenDots
+        uses: actions/checkout@v4
+        with:
+          repository: CopilotKit/OpenDots
+          ref: main
+          path: opendots
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: opendots/package-lock.json
+
+      - name: Install Cockpit
+        working-directory: cockpit
+        run: pip install -e ".[dev]"
+
+      - name: Apply M1.5 overlay
+        working-directory: cockpit
+        run: |
+          python -m mado_cockpit.opendots_dogfood \
+            --opendots-root ../opendots \
+            --apply
+
+      - name: Validate patch cleanliness
+        working-directory: opendots
+        run: |
+          git diff --check
+          git status --short
+          git diff --stat
+
+      - name: Install OpenDots dependencies
+        working-directory: opendots
+        run: npm ci
+
+      - name: Verify real OpenDots
+        working-directory: cockpit
+        run: |
+          python -m mado_cockpit.opendots_dogfood \
+            --opendots-root ../opendots \
+            --verify
+
+      - name: Smoke Node to Python caller
+        working-directory: opendots
+        env:
+          MADO_COCKPIT_ROOT: ${{ github.workspace }}/cockpit
+          MADO_COCKPIT_PYTHON: python
+        run: |
+          cat > /tmp/mado-smoke.ts <<'TS'
+          import { callMadoCockpit } from process.cwd() + '/src/server/mado-cockpit-caller.ts';
+
+          const result = await callMadoCockpit({
+            schema: 'mado.opendots.tool-call.v1',
+            tool_call_id: 'mcc-m1.5-node-python-smoke',
+            tool_name: 'mado_check_mission',
+            context: {
+              dot_id: 'dogfood',
+              space_id: 'dogfood',
+              thread_id: 'dogfood',
+            },
+            arguments: {
+              operator_id: 'opr_missing_dogfood_fixture',
+            },
+          });
+
+          console.log(JSON.stringify(result, null, 2));
+          const payload = result as { ok?: boolean; error?: { code?: string } };
+          if (payload.ok !== false || payload.error?.code !== 'cockpit_read_error') {
+            throw new Error('Unexpected Node -> Python bridge smoke result');
+          }
+          TS
+          npx tsx /tmp/mado-smoke.ts
+
+      - name: Upload dogfood evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendots-dogfood-evidence
+          path: cockpit/.mado/cockpit/integrations/opendots/dogfood/
+          if-no-files-found: warn
