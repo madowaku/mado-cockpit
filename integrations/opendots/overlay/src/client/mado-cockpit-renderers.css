@@ -1,0 +1,128 @@
+.mado-card,
+.mado-gate-card {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 8px 26px rgba(51, 54, 65, 0.06);
+}
+.mado-card header,
+.mado-gate-card header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfaf8;
+}
+.mado-card header strong,
+.mado-gate-card header strong {
+  flex: 1;
+}
+.mado-card header span,
+.mado-gate-card header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mado-card-summary {
+  margin: 0;
+  padding: 14px;
+}
+.mado-card-facts {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0 14px 14px;
+}
+.mado-card-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.mado-card-facts dt {
+  color: var(--muted);
+}
+.mado-card-facts dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 550;
+}
+.mado-card-gate {
+  display: flex;
+  gap: 10px;
+  margin: 0 14px 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--lavender);
+}
+.mado-card-gate div {
+  display: grid;
+  gap: 3px;
+}
+.mado-card-gate small,
+.mado-gate-recommendation span,
+.mado-gate-card footer small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.mado-card-attention {
+  border-color: #e6c9c4;
+}
+.mado-gate-body {
+  padding: 15px;
+}
+.mado-gate-body h3 {
+  margin-bottom: 8px;
+}
+.mado-gate-recommendation {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  margin: 12px 0;
+  border-radius: 10px;
+  background: var(--lavender);
+}
+.mado-gate-choices {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+.mado-gate-choices button {
+  display: grid;
+  justify-content: stretch;
+  text-align: left;
+  gap: 4px;
+}
+.mado-gate-choices button small {
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.45;
+}
+.mado-gate-freeform,
+.mado-gate-note {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.mado-gate-safe-default {
+  width: 100%;
+  margin-top: 4px;
+  background: #f8f7f4;
+}
+.mado-gate-recorded {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--lavender);
+}
+.mado-gate-card footer {
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  background: #fbfaf8;
+  line-height: 1.5;
+}
