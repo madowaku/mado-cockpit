@@ -1,6 +1,6 @@
 # MADO Cockpit
 
-**MADO Cockpit** is the production control plane for MADO SYSTEM ONE.
+**MADO Cockpit** is the agent execution plane for MADO SYSTEM ONE. ChatGPT Space is the preferred human-facing control plane.
 
 It turns AI agents, workspaces, capabilities, evidence, and human decisions into one observable production team.
 
@@ -284,6 +284,43 @@ CSP = local inline app policy
 frame embedding = denied
 cache = disabled
 ```
+
+### MCC-M0.9 Mission Envelope / Outcome Envelope
+
+Cockpit now has a transport-neutral boundary for a Space-style Control Plane.
+
+```text
+Space / control surface
+        ↓
+Mission Envelope
+        ↓
+Cockpit execution plane
+  ├─ policy validation
+  ├─ Operator
+  ├─ isolated workers
+  ├─ Evidence
+  ├─ QA
+  └─ Human Question Gate
+        ↓
+Outcome Envelope
+        ↓
+Space / control surface
+```
+
+Mission input is content-addressed and stored immutably under `.mado/cockpit/control/inbox/`. Duplicate delivery is idempotent. Changed content for the same mission requires an explicit source revision.
+
+M0.9 fails closed on authority escalation. A Mission Envelope cannot silently enable paid execution, publishing, deletion, or external messaging.
+
+Start the bridge from JSON:
+
+```bash
+mado-cockpit control receive mission.json
+mado-cockpit control inspect <ENVELOPE_ID>
+mado-cockpit control start <ENVELOPE_ID>
+mado-cockpit control outcome <ENVELOPE_ID>
+```
+
+The Outcome Envelope intentionally projects only steering-relevant state: mission status, next action, human attention, evidence kinds/bundles, QA verdict, and implementation branch. Raw agent traces and internal Operator state are not copied into the control-plane response.
 
 ## Quick start
 
@@ -741,5 +778,6 @@ The UI server fixture binds an ephemeral localhost port and uses only the Python
 7. **MCC-M0.6 Capability Pager Bridge** ✅
 8. **MCC-M0.7 Human Question Gate** ✅
 9. **MCC-M0.8 Cockpit UI** ✅
+10. **MCC-M0.9 Mission / Outcome Envelope Bridge** ✅
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
