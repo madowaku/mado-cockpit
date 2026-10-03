@@ -81,30 +81,43 @@ jobs:
           cat > /tmp/mado-smoke.ts <<'TS'
           import { pathToFileURL } from 'node:url';
 
-          const moduleUrl = pathToFileURL(
-            process.cwd() + '/src/server/mado-cockpit-caller.ts',
-          ).href;
-          const { callMadoCockpit } = await import(moduleUrl);
+          async function main() {
+            const moduleUrl = pathToFileURL(
+              process.cwd() + '/src/server/mado-cockpit-caller.ts',
+            ).href;
+            const { callMadoCockpit } = await import(moduleUrl);
 
-          const result = await callMadoCockpit({
-            schema: 'mado.opendots.tool-call.v1',
-            tool_call_id: 'mcc-m1.5-node-python-smoke',
-            tool_name: 'mado_check_mission',
-            context: {
-              dot_id: 'dogfood',
-              space_id: 'dogfood',
-              thread_id: 'dogfood',
-            },
-            arguments: {
-              operator_id: 'opr_missing_dogfood_fixture',
-            },
-          });
+            const result = await callMadoCockpit({
+              schema: 'mado.opendots.tool-call.v1',
+              tool_call_id: 'mcc-m1.5-node-python-smoke',
+              tool_name: 'mado_check_mission',
+              context: {
+                dot_id: 'dogfood',
+                space_id: 'dogfood',
+                thread_id: 'dogfood',
+              },
+              arguments: {
+                operator_id: 'opr_missing_dogfood_fixture',
+              },
+            });
 
-          console.log(JSON.stringify(result, null, 2));
-          const payload = result as { ok?: boolean; error?: { code?: string } };
-          if (payload.ok !== false || payload.error?.code !== 'cockpit_read_error') {
-            throw new Error('Unexpected Node -> Python bridge smoke result');
+            console.log(JSON.stringify(result, null, 2));
+            const payload = result as {
+              ok?: boolean;
+              error?: { code?: string };
+            };
+            if (
+              payload.ok !== false ||
+              payload.error?.code !== 'cockpit_read_error'
+            ) {
+              throw new Error('Unexpected Node -> Python bridge smoke result');
+            }
           }
+
+          void main().catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+          });
           TS
           npx tsx /tmp/mado-smoke.ts
 
