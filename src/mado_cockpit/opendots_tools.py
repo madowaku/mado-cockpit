@@ -85,6 +85,15 @@ def tool_catalog() -> list[dict[str, Any]]:
                 "type": "object",
                 "properties": {
                     "operator_id": operator_id,
+                    "gate_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "description": (
+                            "Current Human Question Gate ID from "
+                            "the M1.4 review card or mission status."
+                        ),
+                    },
                     "choice": {
                         "type": "string",
                         "minLength": 1,
@@ -224,12 +233,53 @@ class OpenDotsToolSurface:
                 arguments,
                 {
                     "operator_id",
+                    "gate_id",
                     "choice",
                     "choose_for_me",
                     "note",
                 },
                 name,
             )
+            gate_id = arguments.get("gate_id")
+            if gate_id is not None and (
+                not isinstance(gate_id, str)
+                or not gate_id.strip()
+                or len(gate_id) > 128
+            ):
+                raise OpenDotsToolError(
+                    "gate_id must be a non-empty string up to 128 characters"
+                )
+            if gate_id:
+                current_response = self._runtime(
+                    call,
+                    action="operator.status",
+                    operator_id=operator_id,
+                    payload={},
+                )
+                current_operator = self._runtime_data(
+                    current_response
+                )
+                current_gate_view = current_operator.get(
+                    "human_gate"
+                )
+                current_gate = (
+                    current_gate_view.get("gate")
+                    if isinstance(
+                        current_gate_view,
+                        Mapping,
+                    )
+                    else None
+                )
+                if (
+                    not isinstance(current_gate, Mapping)
+                    or str(current_gate.get("id"))
+                    != gate_id.strip()
+                ):
+                    raise OpenDotsToolError(
+                        "gate_id no longer matches the current open "
+                        "Human Question Gate"
+                    )
+
             choice = arguments.get("choice")
             choose_for_me = arguments.get(
                 "choose_for_me",
@@ -345,7 +395,10 @@ class OpenDotsToolSurface:
         response = self.runtime_adapter.handle(
             {
                 "schema": RUNTIME_SCHEMA,
-                "request_id": self._request_id(call),
+                "request_id": self._request_id(
+                    call,
+                    action=action,
+                ),
                 "action": action,
                 "source": source,
                 "target": {
@@ -880,12 +933,15 @@ class OpenDotsToolSurface:
     @staticmethod
     def _request_id(
         call: Mapping[str, Any],
+        *,
+        action: str,
     ) -> str:
         context = call["context"]
         payload = "|".join(
             [
                 str(call["tool_call_id"]),
                 str(call["tool_name"]),
+                action,
                 str(context["dot_id"]),
                 str(context.get("thread_id", "")),
             ]
