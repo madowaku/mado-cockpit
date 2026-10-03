@@ -1,0 +1,47 @@
+{
+  "schema": "mado.opendots.dogfood-lock.v1",
+  "harness_version": "MCC-M1.5",
+  "upstream": {
+    "repository": "CopilotKit/OpenDots",
+    "branch": "main",
+    "captured_at": "2026-10-03",
+    "locked_files": {
+      "package.json": "3020c50b19e0325c6a85422eacf83b223259e641",
+      "src/server/dot-agent.ts": "9da6ce6d5c9c841f64ea98fab80b7f5633fa9e31",
+      "src/client/Chat.tsx": "4797aaf369afed1b774fcefa04a14892801be694",
+      "src/client/main.tsx": "f384a752f12740ad11fc5142780fbf30da83c3ef"
+    }
+  },
+  "overlay": [
+    {
+      "source": "integrations/opendots/overlay/src/server/mado-cockpit-tools.ts",
+      "target": "src/server/mado-cockpit-tools.ts"
+    },
+    {
+      "source": "integrations/opendots/overlay/src/server/mado-cockpit-caller.ts",
+      "target": "src/server/mado-cockpit-caller.ts"
+    },
+    {
+      "source": "integrations/opendots/overlay/src/shared/mado-human-gate.ts",
+      "target": "src/shared/mado-human-gate.ts"
+    },
+    {
+      "source": "integrations/opendots/overlay/src/client/mado-cockpit-renderers.tsx",
+      "target": "src/client/mado-cockpit-renderers.tsx"
+    },
+    {
+      "source": "integrations/opendots/overlay/src/client/mado-cockpit-renderers.css",
+      "target": "src/client/mado-cockpit-renderers.css"
+    }
+  ],
+  "patch_targets": [
+    "src/server/dot-agent.ts",
+    "src/client/Chat.tsx",
+    "src/client/main.tsx"
+  ],
+  "verify_commands": [
+    ["npm", "run", "typecheck"],
+    ["npm", "run", "build"],
+    ["npm", "test"]
+  ]
+}
