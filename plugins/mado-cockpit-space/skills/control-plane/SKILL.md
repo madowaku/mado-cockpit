@@ -5,6 +5,23 @@ description: Use MADO Cockpit as the execution plane for a ChatGPT Space mission
 
 # MADO Cockpit Control Plane
 
+## Real Space dogfood
+
+When the user is validating a Secure MCP Tunnel connection, use the locally prepared dogfood challenge.
+
+1. The local operator runs `mado-cockpit-space-dogfood prepare`.
+2. The returned prompt includes a one-time `challenge_id` and nonce.
+3. Call `mado_dogfood_handshake` first with exactly those values.
+4. Follow the returned request IDs exactly:
+   - submit the returned Mission Envelope;
+   - start the accepted mission;
+   - refresh its Outcome Envelope;
+   - acknowledge the exact returned outcome digest.
+5. Do not launch Codex during this transport dogfood.
+6. Do not add paid, publish, delete, or external-message authority.
+
+The local operator can then run `mado-cockpit-space-dogfood verify <challenge_id>`. A complete result proves the ChatGPT/Codex MCP client crossed the tunnel, reached Cockpit, received an Outcome Envelope, and acknowledged the same outcome revision.
+
 Use this workflow when the user wants work in a ChatGPT Space or Codex conversation to become a tracked MADO Cockpit mission.
 
 ## Boundary
@@ -78,4 +95,4 @@ Run from the target Cockpit repository, or set:
 MADO_COCKPIT_ROOT=<absolute path to the target repo>
 ```
 
-For ChatGPT developer-mode testing over Streamable HTTP, run the server locally and use an approved secure MCP tunnel rather than exposing the unauthenticated M1.0 server directly.
+For ChatGPT developer-mode testing, prefer OpenAI Secure MCP Tunnel rather than exposing the development server directly. M1.1 includes `mado-cockpit-tunnel` to initialize, diagnose, and run the tunnel profile while keeping the runtime API key out of Cockpit state.

@@ -409,6 +409,8 @@ def test_mcp_server_advertises_bounded_tools(
     }
 
     assert set(by_name) == {
+        "mado_dogfood_probe",
+        "mado_dogfood_handshake",
         "mado_submit_mission",
         "mado_list_missions",
         "mado_inspect_mission",

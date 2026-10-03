@@ -17,6 +17,8 @@ dev = ["pytest>=8.0", "mcp>=2.0,<3"]
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
 mado-cockpit-space-mcp = "mado_cockpit.space_mcp:main"
+mado-cockpit-tunnel = "mado_cockpit.tunnel_cli:main"
+mado-cockpit-space-dogfood = "mado_cockpit.dogfood_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
