@@ -1,0 +1,28 @@
+{
+  "schema": "mado.opendots.renderer-contract.v1",
+  "renderer_version": "MCC-M1.4",
+  "server_tool_renderers": [
+    "mado_check_mission",
+    "mado_advance_mission",
+    "mado_answer_human_gate",
+    "mado_show_evidence",
+    "mado_show_qa_result"
+  ],
+  "presentation_kinds": [
+    "mission_status",
+    "mission_advanced",
+    "human_gate_resolved",
+    "evidence_summary",
+    "qa_result"
+  ],
+  "human_gate": {
+    "frontend_tool": "mado_review_human_gate",
+    "effect": "conversation_only",
+    "then_server_tool": "mado_answer_human_gate",
+    "requires_gate_id": true,
+    "supports_choice_list": true,
+    "supports_freeform": true,
+    "supports_safe_default": true,
+    "direct_cockpit_mutation": false
+  }
+}
