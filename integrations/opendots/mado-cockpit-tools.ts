@@ -64,10 +64,11 @@ export function madoCockpitTools(
     defineTool({
       name: 'mado_answer_human_gate',
       description:
-        'Resolve the current MADO Human Question Gate only after the owner explicitly chose an option, or explicitly asked to use the declared safe default.',
+        'Resolve the current MADO Human Question Gate only after the owner explicitly chose an option, or explicitly asked to use the declared safe default. When a mado_review_human_gate result provides gate_id, forward that gate_id unchanged.',
       parameters: z
         .object({
           operator_id: operatorId,
+          gate_id: z.string().min(1).max(128).optional(),
           choice: z.string().min(1).optional(),
           choose_for_me: z.boolean().default(false),
           note: z.string().max(2000).optional(),
