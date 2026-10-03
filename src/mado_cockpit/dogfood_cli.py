@@ -44,6 +44,13 @@ def build_parser() -> argparse.ArgumentParser:
         default="Real Space transport dogfood",
     )
 
+    verify_probe = sub.add_parser(
+        "verify-probe",
+        help="Verify a read-only MCP Tunnel proof",
+    )
+    verify_probe.add_argument("challenge_id")
+    verify_probe.add_argument("proof")
+
     verify = sub.add_parser(
         "verify",
         help="Verify MCP→Cockpit→Outcome→ACK evidence",
@@ -73,6 +80,14 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 0
+
+    if args.command == "verify-probe":
+        result = manager.verify_probe(
+            args.challenge_id,
+            args.proof,
+        )
+        _print(result)
+        return 0 if result["valid"] else 3
 
     if args.command == "verify":
         result = manager.verify(
