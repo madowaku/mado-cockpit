@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .dogfood import SpaceDogfoodManager
 from .space_transport import SpaceTransportAdapter
 from .store import CockpitStore
 
@@ -29,9 +30,11 @@ def build_server(
             'pip install -e ".[space]"'
         ) from exc
 
-    adapter = SpaceTransportAdapter(
-        CockpitStore(Path(root).resolve())
+    store = CockpitStore(
+        Path(root).resolve()
     )
+    adapter = SpaceTransportAdapter(store)
+    dogfood = SpaceDogfoodManager(store)
     mcp = MCPServer(
         "mado-cockpit-space",
         instructions=(
@@ -42,9 +45,37 @@ def build_server(
             "resolve_human_attention only with the user's "
             "explicit choice or the Gate's declared safe default. "
             "Never infer elevated paid/publish/delete/external "
-            "authority from prose."
+            "authority from prose. Use mado_dogfood_handshake "
+            "only for a locally prepared dogfood challenge."
         ),
     )
+
+    @mcp.tool(
+        name="mado_dogfood_handshake",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def dogfood_handshake(
+        challenge_id: str,
+        nonce: str,
+        client_label: str = "chatgpt-space",
+    ) -> dict[str, Any]:
+        """Prove a real MCP client reached the private Cockpit server.
+
+        The challenge and nonce must have been generated locally by
+        mado-cockpit-space-dogfood prepare. The returned envelope and
+        stable request IDs drive a zero-quota submit/start/outcome/ack
+        transport dogfood.
+        """
+        return dogfood.handshake(
+            challenge_id,
+            nonce,
+            client_label=client_label,
+        )
 
     @mcp.tool(
         name="mado_submit_mission",
