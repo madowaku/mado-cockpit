@@ -389,6 +389,65 @@ The plugin can launch the same MCP bridge over stdio and includes a control-plan
 
 See [MCC-M1.0 Space Transport Adapter](docs/MCC_M1_0_SPACE_TRANSPORT_ADAPTER.md).
 
+### MCC-M1.1 Secure MCP Tunnel / Real Space Dogfood
+
+M1.1 adds the private-network bridge needed to reach the local MCP from a real ChatGPT/Codex client without publishing Cockpit to the internet.
+
+```text
+ChatGPT Space
+   ↓
+Secure MCP Tunnel
+   ↓
+mado-cockpit-space MCP
+   ↓
+Mission Envelope
+   ↓
+Cockpit
+   ↓
+Outcome Envelope
+   ↓
+exact digest ACK
+```
+
+Tunnel setup is wrapped by:
+
+```bash
+mado-cockpit-tunnel plan --tunnel-id tunnel_...
+mado-cockpit-tunnel init --tunnel-id tunnel_...
+mado-cockpit-tunnel doctor
+mado-cockpit-tunnel run
+```
+
+`CONTROL_PLANE_API_KEY` is read only from the environment and is never persisted in Cockpit state.
+
+Prepare a zero-quota real-client challenge:
+
+```bash
+mado-cockpit-space-dogfood prepare
+```
+
+Paste the returned prompt into the ChatGPT Space that has the Tunnel-backed MADO plugin enabled. The first tool call is a one-time nonce handshake, followed by submit → start → outcome → acknowledge.
+
+Verify locally:
+
+```bash
+mado-cockpit-space-dogfood verify <CHALLENGE_ID>
+```
+
+Success requires all five proofs:
+
+```text
+MCP handshake
+Mission submitted
+Mission started
+Outcome compiled
+Exact outcome acknowledged
+```
+
+M1.1 deliberately stops at `awaiting_builder`; it proves real transport without launching Codex or consuming model quota.
+
+See [MCC-M1.1 Secure MCP Tunnel / Real Space Dogfood](docs/MCC_M1_1_SECURE_TUNNEL_REAL_SPACE_DOGFOOD.md).
+
 ## Quick start
 
 ```bash
@@ -847,5 +906,6 @@ The UI server fixture binds an ephemeral localhost port and uses only the Python
 9. **MCC-M0.8 Cockpit UI** ✅
 10. **MCC-M0.9 Mission / Outcome Envelope Bridge** ✅
 11. **MCC-M1.0 Space Transport Adapter** ✅
+12. **MCC-M1.1 Secure MCP Tunnel / Real Space Dogfood** ✅
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
