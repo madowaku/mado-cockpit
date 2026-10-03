@@ -63,6 +63,8 @@ class OperatorManager:
         objective: str,
         *,
         required_evidence: Iterable[str],
+        constraints: Iterable[str] = (),
+        deliverables: Iterable[str] = (),
         provider: str = "codex",
         base_ref: str = "HEAD",
     ) -> dict[str, Any]:
@@ -186,19 +188,25 @@ class OperatorManager:
                 objective.strip(),
                 required_evidence=required,
                 constraints=[
-                    (
-                        "Work only inside the assigned "
-                        "Builder workspace."
-                    ),
-                    (
-                        "Do not claim completion without "
-                        "the required evidence."
-                    ),
+                    *[
+                        (
+                            "Work only inside the assigned "
+                            "Builder workspace."
+                        ),
+                        (
+                            "Do not claim completion without "
+                            "the required evidence."
+                        ),
+                    ],
+                    *_unique(constraints),
                 ],
-                deliverables=[
-                    "implementation",
-                    "evidence",
-                ],
+                deliverables=_unique(
+                    [
+                        "implementation",
+                        "evidence",
+                        *deliverables,
+                    ]
+                ),
                 done_when=[
                     (
                         "Result status is completed and "

@@ -11,6 +11,7 @@ from .capabilities import (
     DeterministicCapabilityPager,
     SystemOnePagerBridge,
 )
+from .control import ControlPlaneBridge
 from .evidence import EvidenceManager
 from .gates import HumanQuestionGateManager
 from .handoffs import HandoffManager
@@ -468,6 +469,39 @@ def build_parser() -> argparse.ArgumentParser:
     capability_bindings.add_argument(
         "--worker",
     )
+
+    control = sub.add_parser(
+        "control",
+        help="Control Plane envelope bridge",
+    )
+    control_sub = control.add_subparsers(
+        dest="control_command",
+        required=True,
+    )
+
+    control_receive = control_sub.add_parser(
+        "receive",
+        help="Accept a Mission Envelope JSON file",
+    )
+    control_receive.add_argument("path")
+
+    control_inspect = control_sub.add_parser(
+        "inspect",
+        help="Inspect a received Mission Envelope",
+    )
+    control_inspect.add_argument("envelope_id")
+
+    control_start = control_sub.add_parser(
+        "start",
+        help="Start Cockpit execution for an accepted envelope",
+    )
+    control_start.add_argument("envelope_id")
+
+    control_outcome = control_sub.add_parser(
+        "outcome",
+        help="Compile an Outcome Envelope",
+    )
+    control_outcome.add_argument("envelope_id")
 
     operator = sub.add_parser(
         "operator",
@@ -1392,6 +1426,44 @@ def main(
             _print_json(
                 manager.list_bindings(
                     args.worker
+                )
+            )
+            return 0
+
+    if args.command == "control":
+        manager = ControlPlaneBridge(store)
+
+        if args.control_command == "receive":
+            payload = json.loads(
+                Path(args.path).read_text(
+                    encoding="utf-8"
+                )
+            )
+            _print_json(
+                manager.receive(payload)
+            )
+            return 0
+
+        if args.control_command == "inspect":
+            _print_json(
+                manager.inspect(
+                    args.envelope_id
+                )
+            )
+            return 0
+
+        if args.control_command == "start":
+            _print_json(
+                manager.start(
+                    args.envelope_id
+                )
+            )
+            return 0
+
+        if args.control_command == "outcome":
+            _print_json(
+                manager.outcome(
+                    args.envelope_id
                 )
             )
             return 0
