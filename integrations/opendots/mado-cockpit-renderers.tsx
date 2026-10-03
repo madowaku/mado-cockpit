@@ -396,39 +396,65 @@ export function MadoHumanGateCard({
   );
 }
 
+const operatorRenderParameters = z
+  .object({ operator_id: z.string() })
+  .passthrough();
+
+const evidenceRenderParameters = z
+  .object({
+    operator_id: z.string(),
+    scope: z.enum(['builder', 'qa', 'all']).optional(),
+  })
+  .passthrough();
+
+const gateAnswerRenderParameters = z
+  .object({
+    operator_id: z.string(),
+    gate_id: z.string().optional(),
+    choice: z.string().optional(),
+    choose_for_me: z.boolean().optional(),
+    note: z.string().optional(),
+  })
+  .passthrough();
+
 export function useMadoCockpitRenderers() {
   useRenderTool(
     {
       name: 'mado_check_mission',
-      render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
     },
     [],
   );
   useRenderTool(
     {
       name: 'mado_advance_mission',
-      render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
     },
     [],
   );
   useRenderTool(
     {
       name: 'mado_answer_human_gate',
-      render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
+      parameters: gateAnswerRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
     },
     [],
   );
   useRenderTool(
     {
       name: 'mado_show_evidence',
-      render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
+      parameters: evidenceRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
     },
     [],
   );
   useRenderTool(
     {
       name: 'mado_show_qa_result',
-      render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
     },
     [],
   );
