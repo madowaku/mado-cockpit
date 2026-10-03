@@ -322,6 +322,73 @@ mado-cockpit control outcome <ENVELOPE_ID>
 
 The Outcome Envelope intentionally projects only steering-relevant state: mission status, next action, human attention, evidence kinds/bundles, QA verdict, and implementation branch. Raw agent traces and internal Operator state are not copied into the control-plane response.
 
+### MCC-M1.0 Space Transport Adapter
+
+M0.9's Mission/Outcome contracts are now reachable through a bounded **MCP transport** for ChatGPT and Codex.
+
+```text
+ChatGPT Space / ChatGPT / Codex
+            ↓
+       Plugin + MCP
+            ↓
+  SpaceTransportAdapter
+            ↓
+   ControlPlaneBridge
+            ↓
+       MADO Cockpit
+            ↓
+   Outcome Envelope
+```
+
+The transport exposes seven focused tools:
+
+```text
+mado_submit_mission
+mado_list_missions
+mado_inspect_mission
+mado_start_mission
+mado_refresh_outcome
+mado_resolve_human_attention
+mado_acknowledge_outcome
+```
+
+Write calls can carry a stable `request_id`. Replaying the same request with the same input returns the recorded result; reusing that ID with changed input fails closed.
+
+Outcome consumption is also explicit: `mado_refresh_outcome` returns an `outcome_digest`, and `mado_acknowledge_outcome` accepts only that exact revision.
+
+Install the optional MCP transport:
+
+```bash
+pip install -e ".[space]"
+```
+
+Run the local Streamable HTTP endpoint:
+
+```bash
+mado-cockpit-space-mcp \
+  --root . \
+  --transport streamable-http
+```
+
+Default endpoint:
+
+```text
+http://127.0.0.1:8780/mcp
+```
+
+M1.0 refuses non-local HTTP binds. For ChatGPT developer-mode testing, use a secure MCP tunnel rather than exposing this unauthenticated development server.
+
+The repo also contains a local plugin package and marketplace:
+
+```text
+plugins/mado-cockpit-space/
+.agents/plugins/marketplace.json
+```
+
+The plugin can launch the same MCP bridge over stdio and includes a control-plane skill that preserves the Mission Envelope, evidence, QA, and Human Question Gate boundaries.
+
+See [MCC-M1.0 Space Transport Adapter](docs/MCC_M1_0_SPACE_TRANSPORT_ADAPTER.md).
+
 ## Quick start
 
 ```bash
@@ -779,5 +846,6 @@ The UI server fixture binds an ephemeral localhost port and uses only the Python
 8. **MCC-M0.7 Human Question Gate** ✅
 9. **MCC-M0.8 Cockpit UI** ✅
 10. **MCC-M0.9 Mission / Outcome Envelope Bridge** ✅
+11. **MCC-M1.0 Space Transport Adapter** ✅
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).

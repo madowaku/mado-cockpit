@@ -1,0 +1,35 @@
+{
+  "name": "mado-cockpit-space",
+  "version": "0.1.0",
+  "description": "Bridge ChatGPT Space intent to the MADO Cockpit agent execution plane.",
+  "author": {
+    "name": "madowaku",
+    "url": "https://github.com/madowaku"
+  },
+  "repository": "https://github.com/madowaku/mado-cockpit",
+  "keywords": [
+    "space",
+    "mcp",
+    "agents",
+    "cockpit",
+    "evidence"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "MADO Cockpit Space",
+    "shortDescription": "Send missions to Cockpit and read evidence-backed outcomes",
+    "longDescription": "Use ChatGPT or Codex as the human-facing control plane while MADO Cockpit validates, executes, reviews, and returns compact Outcome Envelopes.",
+    "developerName": "madowaku",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Turn this Space page into a safe MADO mission and submit it.",
+      "Show the latest outcome and any human decision MADO Cockpit needs.",
+      "Start the accepted mission in MADO Cockpit."
+    ]
+  }
+}

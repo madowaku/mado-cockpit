@@ -1,0 +1,20 @@
+{
+  "name": "mado-cockpit-local",
+  "interface": {
+    "displayName": "MADO Cockpit Local"
+  },
+  "plugins": [
+    {
+      "name": "mado-cockpit-space",
+      "source": {
+        "source": "local",
+        "path": "./plugins/mado-cockpit-space"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

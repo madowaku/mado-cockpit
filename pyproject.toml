@@ -5,16 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mado-cockpit"
 version = "0.1.0"
-description = "Production control plane for MADO SYSTEM ONE"
+description = "Agent execution plane for MADO SYSTEM ONE"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+space = ["mcp>=2.0,<3"]
+dev = ["pytest>=8.0", "mcp>=2.0,<3"]
 
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
+mado-cockpit-space-mcp = "mado_cockpit.space_mcp:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
