@@ -152,6 +152,48 @@ Evidence includes:
 
 A failed doctor remains evidence and returns unhealthy rather than being hidden.
 
+## Plan compatibility
+
+As of October 3, 2026, ChatGPT full MCP write/modify actions are available to Business and Enterprise/Edu workspaces. Pro developer mode can connect custom MCPs with read/fetch permissions but not the full write flow.
+
+M1.1 therefore supports two dogfood modes:
+
+### Read-only Tunnel probe
+
+Suitable for a read-only MCP connection.
+
+```text
+ChatGPT
+  ↓
+mado_dogfood_probe
+  ↓
+HMAC proof returned
+  ↓
+local verify-probe
+```
+
+Prepare a challenge normally, then ask ChatGPT to call:
+
+```text
+mado_dogfood_probe(challenge_id, nonce)
+```
+
+Copy the returned `proof` and verify locally:
+
+```bash
+mado-cockpit-space-dogfood verify-probe \
+  <challenge_id> <proof>
+```
+
+The probe tool is annotated read-only and does not write Cockpit transport receipts. The HMAC secret remains local and is never returned by `prepare`.
+
+### Full write round trip
+
+When the ChatGPT workspace permits full MCP write actions, use the normal handshake and submit → start → outcome → ACK flow below.
+
+Reference:
+https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt
+
 ## Real Space challenge
 
 Prepare one challenge:
