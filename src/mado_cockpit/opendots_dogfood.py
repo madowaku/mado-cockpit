@@ -470,11 +470,18 @@ class OpenDotsDogfoodHarness:
             new = """            // MADO_COCKPIT_M1_5_FRONTEND_TOOLS
             tools:
               !this.channel
-                ? input.tools.filter((tool) =>
-                    [pageReviewTool.name, madoHumanGateReviewTool.name].includes(
-                      tool.name,
-                    ),
-                  )
+                ? [
+                    ...(input.tools.some(
+                      (tool) => tool.name === pageReviewTool.name,
+                    )
+                      ? [pageReviewTool]
+                      : []),
+                    ...(input.tools.some(
+                      (tool) => tool.name === madoHumanGateReviewTool.name,
+                    )
+                      ? [madoHumanGateReviewTool]
+                      : []),
+                  ]
                 : [],
 """
             text = self._replace_once(
