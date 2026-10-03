@@ -1,0 +1,27 @@
+{
+  "schema": "mado.opendots.tool-catalog.v1",
+  "surface_version": "MCC-M1.3",
+  "tools": [
+    {
+      "name": "mado_check_mission",
+      "read_only": true
+    },
+    {
+      "name": "mado_advance_mission",
+      "read_only": false
+    },
+    {
+      "name": "mado_answer_human_gate",
+      "read_only": false,
+      "requires_explicit_user_choice": true
+    },
+    {
+      "name": "mado_show_evidence",
+      "read_only": true
+    },
+    {
+      "name": "mado_show_qa_result",
+      "read_only": true
+    }
+  ]
+}
