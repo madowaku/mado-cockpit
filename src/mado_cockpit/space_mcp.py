@@ -51,6 +51,30 @@ def build_server(
     )
 
     @mcp.tool(
+        name="mado_dogfood_probe",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def dogfood_probe(
+        challenge_id: str,
+        nonce: str,
+    ) -> dict[str, Any]:
+        """Return a read-only proof that this MCP server was reached.
+
+        This is suitable for ChatGPT plans/workspaces that permit
+        read-only custom MCP access but not write/modify actions.
+        The proof can be verified locally without mutating Cockpit.
+        """
+        return dogfood.probe(
+            challenge_id,
+            nonce,
+        )
+
+    @mcp.tool(
         name="mado_dogfood_handshake",
         annotations=ToolAnnotations(
             readOnlyHint=False,
