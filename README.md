@@ -420,6 +420,8 @@ mado-cockpit-tunnel run
 
 `CONTROL_PLANE_API_KEY` is read only from the environment and is never persisted in Cockpit state.
 
+ChatGPT plan/workspace permissions matter: full MCP write actions are currently Business / Enterprise / Edu functionality. M1.1 also exposes `mado_dogfood_probe`, a read-only HMAC proof path for developer-mode connections that cannot use the write tools.
+
 Prepare a zero-quota real-client challenge:
 
 ```bash
