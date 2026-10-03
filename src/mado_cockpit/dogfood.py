@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import secrets
 from pathlib import Path
@@ -127,6 +129,14 @@ class SpaceDogfoodManager:
             root / "challenge.json",
             challenge,
         )
+        self._write_json(
+            root / "probe-secret.json",
+            {
+                "secret": secrets.token_urlsafe(
+                    32
+                )
+            },
+        )
         return {
             "challenge_id": challenge_id,
             "nonce": nonce,
@@ -136,6 +146,71 @@ class SpaceDogfoodManager:
                 nonce,
             ),
         }
+
+    def probe(
+        self,
+        challenge_id: str,
+        nonce: str,
+    ) -> dict[str, Any]:
+        """Read-only proof that the MCP tool surface was reached."""
+        challenge = self._challenge(
+            challenge_id
+        )
+        if not secrets.compare_digest(
+            str(challenge["nonce"]),
+            nonce,
+        ):
+            raise RuntimeError(
+                "Dogfood challenge nonce mismatch"
+            )
+        secret = self._probe_secret(
+            challenge_id
+        )
+        message = (
+            f"{challenge_id}:{nonce}"
+        ).encode("utf-8")
+        proof = hmac.new(
+            secret.encode("utf-8"),
+            message,
+            hashlib.sha256,
+        ).hexdigest()
+        return {
+            "challenge_id": challenge_id,
+            "mission_id": challenge["mission_id"],
+            "proof": proof,
+            "mode": "read_only_probe",
+        }
+
+    def verify_probe(
+        self,
+        challenge_id: str,
+        proof: str,
+    ) -> dict[str, Any]:
+        challenge = self._challenge(
+            challenge_id
+        )
+        expected = self.probe(
+            challenge_id,
+            str(challenge["nonce"]),
+        )["proof"]
+        valid = hmac.compare_digest(
+            expected,
+            proof.strip(),
+        )
+        result = {
+            "challenge_id": challenge_id,
+            "mission_id": challenge["mission_id"],
+            "valid": valid,
+            "mode": "read_only_probe",
+            "verified_at": utc_now(),
+        }
+        self._write_json(
+            self.base
+            / challenge_id
+            / "probe-verification.json",
+            result,
+        )
+        return result
 
     def handshake(
         self,
@@ -334,7 +409,37 @@ class SpaceDogfoodManager:
                 ).exists()
                 else None
             ),
+            "probe_verification": (
+                self._read_json(
+                    root / "probe-verification.json"
+                )
+                if (
+                    root / "probe-verification.json"
+                ).exists()
+                else None
+            ),
         }
+
+    def _probe_secret(
+        self,
+        challenge_id: str,
+    ) -> str:
+        path = (
+            self.base
+            / challenge_id
+            / "probe-secret.json"
+        )
+        if not path.exists():
+            raise RuntimeError(
+                "Dogfood probe secret not found"
+            )
+        payload = self._read_json(path)
+        secret = payload.get("secret")
+        if not isinstance(secret, str):
+            raise RuntimeError(
+                "Dogfood probe secret is invalid"
+            )
+        return secret
 
     def _request_receipt(
         self,
