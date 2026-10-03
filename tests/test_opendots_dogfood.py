@@ -126,6 +126,9 @@ def test_apply_materializes_overlay_and_patches_once(tmp_path):
     assert "madoCockpitTools(" in dot_agent
     assert "mado_review_human_gate" in dot_agent
     assert "madoHumanGateReviewTool.name" in dot_agent
+    assert "input.tools.filter" not in dot_agent
+    assert "? [pageReviewTool]" in dot_agent
+    assert "? [madoHumanGateReviewTool]" in dot_agent
 
     chat = (
         checkout / "src/client/Chat.tsx"
