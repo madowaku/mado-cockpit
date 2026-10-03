@@ -137,6 +137,9 @@ export function MadoToolCard({
 
   const presentation = parsed.data.presentation;
   const Icon = iconFor(presentation.kind);
+  const hasHumanGate =
+    presentation.human_gate !== null &&
+    typeof presentation.human_gate === 'object';
   return (
     <section
       className={`mado-card mado-card-${presentation.kind}`}
@@ -158,8 +161,7 @@ export function MadoToolCard({
           ))}
         </dl>
       )}
-      {presentation.human_gate &&
-        typeof presentation.human_gate === 'object' && (
+      {hasHumanGate && (
           <div className="mado-card-gate">
             <ShieldQuestion size={16} aria-hidden="true" />
             <div>
@@ -345,22 +347,68 @@ export function MadoHumanGateCard({
   );
 }
 
+const operatorRenderParameters = z
+  .object({ operator_id: z.string() })
+  .passthrough();
+
+const evidenceRenderParameters = z
+  .object({
+    operator_id: z.string(),
+    scope: z.enum(['builder', 'qa', 'all']).optional(),
+  })
+  .passthrough();
+
+const gateAnswerRenderParameters = z
+  .object({
+    operator_id: z.string(),
+    gate_id: z.string().optional(),
+    choice: z.string().optional(),
+    choose_for_me: z.boolean().optional(),
+    note: z.string().optional(),
+  })
+  .passthrough();
+
 export function useMadoCockpitRenderers() {
-  for (const name of [
-    'mado_check_mission',
-    'mado_advance_mission',
-    'mado_answer_human_gate',
-    'mado_show_evidence',
-    'mado_show_qa_result',
-  ] as const) {
-    useRenderTool(
-      {
-        name,
-        render: (props: ToolRenderProps) => <MadoToolCard {...props} />,
-      },
-      [],
-    );
-  }
+  useRenderTool(
+    {
+      name: 'mado_check_mission',
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: 'mado_advance_mission',
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: 'mado_answer_human_gate',
+      parameters: gateAnswerRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: 'mado_show_evidence',
+      parameters: evidenceRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: 'mado_show_qa_result',
+      parameters: operatorRenderParameters,
+      render: (props) => <MadoToolCard {...props} />,
+    },
+    [],
+  );
 
   useHumanInTheLoop(
     {
