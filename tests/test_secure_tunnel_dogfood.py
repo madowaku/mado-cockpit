@@ -252,6 +252,27 @@ def test_real_space_dogfood_challenge_full_transport_loop(
     )
 
 
+def test_read_only_probe_can_be_verified_without_transport_writes(
+    tmp_path,
+):
+    store = setup_store(tmp_path)
+    dogfood = SpaceDogfoodManager(store)
+    prepared = dogfood.prepare()
+
+    proof = dogfood.probe(
+        prepared["challenge_id"],
+        prepared["nonce"],
+    )
+    verified = dogfood.verify_probe(
+        prepared["challenge_id"],
+        proof["proof"],
+    )
+
+    assert proof["mode"] == "read_only_probe"
+    assert verified["valid"] is True
+    assert not dogfood.transport.requests_dir.exists()
+
+
 def test_dogfood_nonce_mismatch_rejected(
     tmp_path,
 ):
