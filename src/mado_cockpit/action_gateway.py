@@ -825,9 +825,25 @@ class ActionPolicyGateway:
                 != scope
             ):
                 continue
-            if (
+            decision = receipt.get(
+                "decision"
+            )
+            source = (
+                decision.get("source")
+                if isinstance(
+                    decision,
+                    Mapping,
+                )
+                else None
+            )
+            refusal_fences = (
                 receipt.get("status")
                 == "refused"
+                and source
+                != "human_control_fenced"
+            )
+            if (
+                refusal_fences
                 or receipt.get(
                     "dispatch_status"
                 )
