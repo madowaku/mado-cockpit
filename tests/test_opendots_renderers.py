@@ -213,20 +213,45 @@ def test_matching_gate_id_is_validated_then_resolved(tmp_path):
 def test_stale_gate_card_cannot_resolve_new_gate(tmp_path):
     surface, runtime = _surface(tmp_path)
 
-    with pytest.raises(
-        OpenDotsToolError,
-        match="no longer matches",
-    ):
-        surface.handle(
-            _gate_call(
-                "gate_old",
-                tool_call_id="stale-card-1",
-            )
+    result = surface.handle(
+        _gate_call(
+            "gate_old",
+            tool_call_id="stale-card-1",
         )
+    )
 
+    assert result["ok"] is False
+    assert (
+        result["error"]["code"]
+        == "action_refused"
+    )
+    assert "no longer matches" in (
+        result["error"]["message"]
+    )
     assert runtime.calls == [
         ("inspect", "opr_fixture")
     ]
+
+    receipts = sorted(
+        (
+            surface.store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    assert len(receipts) == 1
+    receipt = json.loads(
+        receipts[0].read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        receipt["decision"]["source"]
+        == "revalidation_error"
+    )
+    assert (
+        receipt["dispatch_status"]
+        == "not_dispatched"
+    )
 
 
 def test_m14_renderer_contract_is_two_phase():
