@@ -2,6 +2,11 @@ import json
 
 import pytest
 
+from mado_cockpit.action_gateway import (
+    ActionPolicy,
+    ActionRule,
+    mado_internal_action_policy,
+)
 from mado_cockpit.models import Project
 from mado_cockpit.opendots import OpenDotsRuntimeAdapter
 from mado_cockpit.opendots_tools import (
@@ -713,4 +718,202 @@ def test_stale_bound_gate_is_durable_policy_refusal(tmp_path):
     assert (
         receipt["dispatch_status"]
         == "not_dispatched"
+    )
+
+
+
+def test_write_receipt_records_opendots_initiator_context(tmp_path):
+    surface, _, store = setup_surface(tmp_path)
+
+    result = surface.handle(
+        call(
+            "mado_advance_mission",
+            {"operator_id": "opr_fixture"},
+        )
+    )
+
+    assert result["ok"] is True
+    receipt_path = next(
+        (
+            store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    receipt = json.loads(
+        receipt_path.read_text(
+            encoding="utf-8"
+        )
+    )
+    assert receipt["actor"] == "dot:scout"
+    assert receipt["initiator"] == {
+        "kind": "chat",
+        "source": "opendots:scout",
+        "context_id": "thread-1",
+    }
+    assert (
+        receipt["fence_scope"]
+        == "chat:opendots:scout:thread-1"
+    )
+
+
+def test_surface_shadow_policy_observes_denial_without_blocking(
+    tmp_path,
+):
+    store = CockpitStore(tmp_path)
+    store.init(
+        Project(
+            id="fixture",
+            name="Fixture",
+            root=str(tmp_path),
+        )
+    )
+    runtime = FakeRuntime()
+    surface = OpenDotsToolSurface(
+        store,
+        runtime_adapter=OpenDotsRuntimeAdapter(
+            store,
+            runtime=runtime,
+        ),
+        shadow_action_policy=ActionPolicy(
+            deny=(
+                ActionRule(
+                    id="shadow-deny-advance",
+                    predicate=lambda candidate: (
+                        candidate.action
+                        == "mado_advance_mission"
+                    ),
+                    reason=(
+                        "Candidate policy would "
+                        "deny this write."
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    result = surface.handle(
+        call(
+            "mado_advance_mission",
+            {"operator_id": "opr_fixture"},
+        )
+    )
+
+    assert result["ok"] is True
+    assert runtime.calls == [
+        ("advance", "opr_fixture")
+    ]
+    receipt_path = next(
+        (
+            store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    receipt = json.loads(
+        receipt_path.read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        receipt["decision"]["allowed"]
+        is True
+    )
+    assert (
+        receipt["shadow_decision"][
+            "allowed"
+        ]
+        is False
+    )
+    assert (
+        receipt["shadow_delta"]
+        == "would_deny"
+    )
+
+
+def test_same_thread_refused_write_is_fenced_across_new_tool_call(
+    tmp_path,
+):
+    store = CockpitStore(tmp_path)
+    store.init(
+        Project(
+            id="fixture",
+            name="Fixture",
+            root=str(tmp_path),
+        )
+    )
+    runtime = FakeRuntime()
+    adapter = OpenDotsRuntimeAdapter(
+        store,
+        runtime=runtime,
+    )
+    refusing_surface = OpenDotsToolSurface(
+        store,
+        runtime_adapter=adapter,
+        action_policy=ActionPolicy(),
+    )
+
+    first = refusing_surface.handle(
+        call(
+            "mado_advance_mission",
+            {"operator_id": "opr_fixture"},
+            tool_call_id="denied-write-1",
+        )
+    )
+    assert first["ok"] is False
+    assert (
+        first["error"]["code"]
+        == "action_refused"
+    )
+    assert runtime.calls == []
+
+    permissive_surface = OpenDotsToolSurface(
+        store,
+        runtime_adapter=adapter,
+        action_policy=(
+            mado_internal_action_policy()
+        ),
+    )
+    second = permissive_surface.handle(
+        call(
+            "mado_advance_mission",
+            {"operator_id": "opr_fixture"},
+            tool_call_id="denied-write-2",
+        )
+    )
+
+    assert second["ok"] is False
+    assert (
+        second["error"]["code"]
+        == "action_refused"
+    )
+    assert "equivalent action" in (
+        second["error"]["message"]
+    )
+    assert runtime.calls == []
+    receipts = sorted(
+        (
+            json.loads(
+                path.read_text(
+                    encoding="utf-8"
+                )
+            )
+            for path in (
+                store.base
+                / "action_decisions"
+            ).glob("*.json")
+        ),
+        key=lambda item: item[
+            "recorded_at"
+        ],
+    )
+    assert (
+        receipts[-1]["decision"][
+            "source"
+        ]
+        == "equivalent_fenced"
+    )
+    assert (
+        receipts[-1][
+            "equivalent_to_receipt_id"
+        ]
+        == receipts[0]["id"]
     )
