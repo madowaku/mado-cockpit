@@ -51,7 +51,10 @@ async function main() {
       fullPage: true,
     });
 
-    await page.getByRole('button', { name: /stay_free/i }).click();
+    await page
+      .locator('.mado-gate-choices button')
+      .filter({ hasText: 'stay_free' })
+      .click();
 
     await page
       .getByText(
