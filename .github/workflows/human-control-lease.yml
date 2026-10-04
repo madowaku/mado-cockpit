@@ -1,0 +1,66 @@
+name: Human Control Lease
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/human-control-lease.yml"
+      - "src/mado_cockpit/control_lease.py"
+      - "src/mado_cockpit/action_gateway.py"
+      - "scripts/human_control_lease_smoke.py"
+      - "tests/test_control_lease.py"
+      - "tests/test_action_gateway.py"
+
+permissions:
+  contents: read
+
+jobs:
+  human-control-fence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run focused M2.4 tests
+        run: |
+          set -o pipefail
+          pytest -q tests/test_control_lease.py tests/test_action_gateway.py | tee /tmp/m2.4-focused-tests.txt
+
+      - name: Run Human Control smoke
+        run: |
+          set -o pipefail
+          mkdir -p .mado/m2.4
+          python scripts/human_control_lease_smoke.py --root /tmp/mado-m2.4-fixture | tee .mado/m2.4/human-control-smoke.json
+          cp -R /tmp/mado-m2.4-fixture/.mado/cockpit/control_leases .mado/m2.4/control_leases
+          cp -R /tmp/mado-m2.4-fixture/.mado/cockpit/action_decisions .mado/m2.4/action_decisions
+
+      - name: Exercise human-only lease CLI
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/mado-m2.4-cli
+          python -c "from pathlib import Path; from mado_cockpit.models import Project; from mado_cockpit.store import CockpitStore; root=Path('/tmp/mado-m2.4-cli'); root.mkdir(parents=True, exist_ok=True); CockpitStore(root).init(Project(id='cli', name='CLI', root=str(root)))"
+          python -m mado_cockpit.control_lease --root /tmp/mado-m2.4-cli acquire --kind browser --resource-id cli-session --holder human:cli --ttl-seconds 60 | tee .mado/m2.4/cli-acquire.json
+          LEASE_ID="$(python -c "import json; print(json.load(open('.mado/m2.4/cli-acquire.json'))['lease']['id'])")"
+          python -m mado_cockpit.control_lease --root /tmp/mado-m2.4-cli status --kind browser --resource-id cli-session | tee .mado/m2.4/cli-status.json
+          python -m mado_cockpit.control_lease --root /tmp/mado-m2.4-cli heartbeat --lease-id "$LEASE_ID" --holder human:cli --ttl-seconds 120 | tee .mado/m2.4/cli-heartbeat.json
+          python -m mado_cockpit.control_lease --root /tmp/mado-m2.4-cli release --lease-id "$LEASE_ID" --holder human:cli | tee .mado/m2.4/cli-release.json
+
+      - name: Upload M2.4 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: human-control-lease-evidence
+          path: |
+            .mado/m2.4/
+            /tmp/m2.4-focused-tests.txt
+          if-no-files-found: error
