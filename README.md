@@ -285,6 +285,26 @@ frame embedding = denied
 cache = disabled
 ```
 
+### MCC-M1.7 Agent Reach Adapter / External Web Capability Router
+
+Agent Reach can now be imported as an external-web capability provider without giving it control-plane authority.
+
+```text
+agent-reach doctor --json
+        ↓
+MADO health normalization
+        ↓
+agent-reach.<channel>
+        ↓
+Capability Pager + Cockpit policy
+```
+
+Only channels reporting both `status=ok` and a non-empty `active_backend` become `available`. Existing unmanaged capability descriptors are preserved, stale Agent Reach-managed descriptors are replaced, and ID collisions fail closed.
+
+Use `mado-cockpit capability agent-reach doctor` to inspect health and `mado-cockpit capability agent-reach sync` to refresh the registry. The adapter never performs install, login, cookie import, or provider configuration.
+
+See `docs/MCC-M1.7_AGENT_REACH_ADAPTER.md` for the execution and security contract.
+
 ## Quick start
 
 ```bash

@@ -1,0 +1,33 @@
+{
+  "github": {
+    "status": "ok",
+    "name": "GitHub 仓库与代码",
+    "message": "gh CLI 可用",
+    "tier": 0,
+    "backends": [
+      "gh"
+    ],
+    "active_backend": "gh"
+  },
+  "twitter": {
+    "status": "warn",
+    "name": "Twitter / X",
+    "message": "twitter-cli 已安装但需要登录",
+    "tier": 1,
+    "backends": [
+      "twitter-cli",
+      "opencli"
+    ],
+    "active_backend": null
+  },
+  "web": {
+    "status": "error",
+    "name": "普通网页",
+    "message": "probe failed",
+    "tier": 0,
+    "backends": [
+      "requests"
+    ],
+    "active_backend": null
+  }
+}
