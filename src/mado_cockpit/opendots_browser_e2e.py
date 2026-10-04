@@ -197,7 +197,7 @@ class OpenDotsBrowserE2E:
                 "app dogfood route import",
             )
 
-        if "MADO_COCKPIT_M1_6_DOGFOOD_ROUTE" not in text:
+        if "// MADO_COCKPIT_M1_6_DOGFOOD_ROUTE\n" not in text:
             anchor = (
                 "  if (platform && voice) "
                 "app.route('/api', workspaceRoutes(platform, voice));"
@@ -239,7 +239,7 @@ class OpenDotsBrowserE2E:
                 "main dogfood page import",
             )
 
-        if "MADO_COCKPIT_M1_6_DOGFOOD_PAGE" not in text:
+        if "// MADO_COCKPIT_M1_6_DOGFOOD_PAGE\n" not in text:
             old = """createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
