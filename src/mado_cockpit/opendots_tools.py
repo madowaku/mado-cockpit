@@ -8,6 +8,13 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
+from .action_gateway import (
+    ActionCandidate,
+    ActionPolicy,
+    ActionPolicyGateway,
+    ActionPolicyRefused,
+    mado_internal_action_policy,
+)
 from .evidence import EvidenceManager
 from .handoffs import HandoffManager
 from .opendots import (
@@ -158,6 +165,8 @@ class OpenDotsToolSurface:
         operator: Any | None = None,
         evidence: Any | None = None,
         handoffs: Any | None = None,
+        action_gateway: Any | None = None,
+        action_policy: ActionPolicy | None = None,
     ) -> None:
         self.store = store
         self.runtime_adapter = (
@@ -167,6 +176,14 @@ class OpenDotsToolSurface:
         self.operator = operator or OperatorManager(store)
         self.evidence = evidence or EvidenceManager(store)
         self.handoffs = handoffs or HandoffManager(store)
+        self.action_gateway = (
+            action_gateway
+            or ActionPolicyGateway(store)
+        )
+        self.action_policy = (
+            action_policy
+            or mado_internal_action_policy()
+        )
 
     def handle(
         self,
@@ -177,6 +194,18 @@ class OpenDotsToolSurface:
             data, presentation = self._dispatch(envelope)
         except OpenDotsToolError:
             raise
+        except ActionPolicyRefused as exc:
+            return self._result(
+                envelope,
+                ok=False,
+                error={
+                    "code": "action_refused",
+                    "message": str(exc),
+                    "receipt_id": (
+                        exc.receipt_id
+                    ),
+                },
+            )
         except RuntimeError as exc:
             return self._result(
                 envelope,
@@ -215,11 +244,17 @@ class OpenDotsToolSurface:
 
         if name == "mado_advance_mission":
             self._only(arguments, {"operator_id"}, name)
-            response = self._runtime(
+            response = self._governed_runtime(
                 call,
-                action="operator.advance",
+                tool_name=name,
+                runtime_action="operator.advance",
                 operator_id=operator_id,
                 payload={},
+                target_kind="operator",
+                target={
+                    "operator_id": operator_id,
+                },
+                action_arguments={},
             )
             operator = self._runtime_data(response)
             projected = self._project_operator(operator)
@@ -315,11 +350,96 @@ class OpenDotsToolSurface:
                 payload["choice"] = choice.strip()
             if note:
                 payload["note"] = note
-            response = self._runtime(
+            requested_gate_id = (
+                gate_id.strip()
+                if isinstance(gate_id, str)
+                and gate_id.strip()
+                else None
+            )
+
+            def revalidate_gate(
+                candidate: ActionCandidate,
+            ) -> ActionCandidate:
+                current_response = self._runtime(
+                    call,
+                    action="operator.status",
+                    operator_id=operator_id,
+                    payload={},
+                )
+                current_operator = self._runtime_data(
+                    current_response
+                )
+                current_gate_view = current_operator.get(
+                    "human_gate"
+                )
+                current_gate = (
+                    current_gate_view.get("gate")
+                    if isinstance(
+                        current_gate_view,
+                        Mapping,
+                    )
+                    else None
+                )
+                if not isinstance(
+                    current_gate,
+                    Mapping,
+                ):
+                    raise RuntimeError(
+                        "gate_id no longer matches the current open "
+                        "Human Question Gate"
+                    )
+                current_gate_id = str(
+                    current_gate.get("id")
+                )
+                if (
+                    requested_gate_id
+                    and current_gate_id
+                    != requested_gate_id
+                ):
+                    raise RuntimeError(
+                        "gate_id no longer matches the current open "
+                        "Human Question Gate"
+                    )
+                return candidate.with_target(
+                    {
+                        "operator_id": operator_id,
+                        "gate_id": (
+                            current_gate_id
+                        ),
+                    }
+                )
+
+            response = self._governed_runtime(
                 call,
-                action="gate.resolve",
+                tool_name=name,
+                runtime_action="gate.resolve",
                 operator_id=operator_id,
                 payload=payload,
+                target_kind="human_gate",
+                target={
+                    "operator_id": operator_id,
+                    "gate_id": (
+                        requested_gate_id
+                        or ""
+                    ),
+                },
+                action_arguments={
+                    **payload,
+                    **(
+                        {
+                            "gate_id": (
+                                requested_gate_id
+                            )
+                        }
+                        if requested_gate_id
+                        else {}
+                    ),
+                },
+                revalidate=revalidate_gate,
+                approval_bound=(
+                    requested_gate_id
+                    is not None
+                ),
             )
             runtime_data = self._runtime_data(response)
             operator = runtime_data.get(
@@ -373,6 +493,55 @@ class OpenDotsToolSurface:
 
         raise OpenDotsToolError(
             f"unsupported tool: {name}"
+        )
+
+    def _governed_runtime(
+        self,
+        call: Mapping[str, Any],
+        *,
+        tool_name: str,
+        runtime_action: str,
+        operator_id: str,
+        payload: Mapping[str, Any],
+        target_kind: str,
+        target: Mapping[str, Any],
+        action_arguments: Mapping[str, Any],
+        revalidate: Any | None = None,
+        approval_bound: bool = False,
+    ) -> dict[str, Any]:
+        context = call["context"]
+        candidate = ActionCandidate(
+            action=tool_name,
+            effect="write",
+            target_kind=target_kind,
+            target=dict(target),
+            arguments=dict(
+                action_arguments
+            ),
+            actor=(
+                f"dot:{context['dot_id']}"
+            ),
+        )
+        approved_digest = (
+            candidate.digest
+            if approval_bound
+            else None
+        )
+        return self.action_gateway.execute(
+            candidate,
+            policy=self.action_policy,
+            revalidate=revalidate,
+            approved_digest=(
+                approved_digest
+            ),
+            dispatch=lambda current: (
+                self._runtime(
+                    call,
+                    action=runtime_action,
+                    operator_id=operator_id,
+                    payload=payload,
+                )
+            ),
         )
 
     def _runtime(
