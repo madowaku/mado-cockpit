@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from dataclasses import dataclass
@@ -436,3 +437,171 @@ class ControlLeaseManager:
                 },
             )
         )
+
+
+
+def main(
+    argv: list[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        prog=(
+            "python -m "
+            "mado_cockpit.control_lease"
+        )
+    )
+    parser.add_argument(
+        "--root",
+        default=".",
+    )
+    sub = parser.add_subparsers(
+        dest="command",
+        required=True,
+    )
+
+    acquire = sub.add_parser(
+        "acquire"
+    )
+    acquire.add_argument(
+        "--kind",
+        required=True,
+    )
+    acquire.add_argument(
+        "--resource-id",
+        required=True,
+    )
+    acquire.add_argument(
+        "--holder",
+        required=True,
+    )
+    acquire.add_argument(
+        "--ttl-seconds",
+        type=int,
+        default=300,
+    )
+    acquire.add_argument(
+        "--reason",
+    )
+
+    status = sub.add_parser(
+        "status"
+    )
+    status.add_argument(
+        "--kind",
+        required=True,
+    )
+    status.add_argument(
+        "--resource-id",
+        required=True,
+    )
+
+    heartbeat = sub.add_parser(
+        "heartbeat"
+    )
+    heartbeat.add_argument(
+        "--lease-id",
+        required=True,
+    )
+    heartbeat.add_argument(
+        "--holder",
+        required=True,
+    )
+    heartbeat.add_argument(
+        "--ttl-seconds",
+        type=int,
+        default=300,
+    )
+
+    release = sub.add_parser(
+        "release"
+    )
+    release.add_argument(
+        "--lease-id",
+        required=True,
+    )
+    release.add_argument(
+        "--holder",
+        required=True,
+    )
+
+    args = parser.parse_args(argv)
+    store = CockpitStore(
+        Path(args.root).resolve()
+    )
+    manager = ControlLeaseManager(
+        store
+    )
+
+    try:
+        if args.command == "acquire":
+            result = manager.acquire(
+                ControlScope(
+                    args.kind,
+                    args.resource_id,
+                ),
+                holder=args.holder,
+                ttl_seconds=(
+                    args.ttl_seconds
+                ),
+                reason=args.reason,
+            )
+        elif args.command == "status":
+            result = manager.current(
+                ControlScope(
+                    args.kind,
+                    args.resource_id,
+                )
+            )
+        elif args.command == (
+            "heartbeat"
+        ):
+            result = manager.heartbeat(
+                args.lease_id,
+                holder=args.holder,
+                ttl_seconds=(
+                    args.ttl_seconds
+                ),
+            )
+        else:
+            result = manager.release(
+                args.lease_id,
+                holder=args.holder,
+            )
+    except ControlLeaseError as exc:
+        print(
+            json.dumps(
+                {
+                    "schema": (
+                        "mado.human-control-result.v1"
+                    ),
+                    "version": (
+                        CONTROL_LEASE_VERSION
+                    ),
+                    "ok": False,
+                    "error": str(exc),
+                },
+                indent=2,
+            )
+        )
+        return 2
+
+    print(
+        json.dumps(
+            {
+                "schema": (
+                    "mado.human-control-result.v1"
+                ),
+                "version": (
+                    CONTROL_LEASE_VERSION
+                ),
+                "ok": True,
+                "lease": result,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
