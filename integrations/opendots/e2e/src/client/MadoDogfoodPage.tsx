@@ -118,7 +118,7 @@ export function MadoDogfoodPage() {
         </p>
       )}
 
-      {statusResult && (
+      {statusResult !== undefined && (
         <section aria-label="Current mission card">
           <MadoToolCard
             name="mado_check_mission"
@@ -158,7 +158,7 @@ export function MadoDogfoodPage() {
         </section>
       )}
 
-      {resolutionResult && (
+      {resolutionResult !== undefined && (
         <section aria-label="Human Gate resolution card">
           <MadoToolCard
             name="mado_answer_human_gate"
