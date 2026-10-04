@@ -8,13 +8,14 @@ version = "0.1.0"
 description = "Production control plane for MADO SYSTEM ONE"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["mcp>=2.0,<3"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
+mado-cockpit-mcp = "mado_cockpit.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
