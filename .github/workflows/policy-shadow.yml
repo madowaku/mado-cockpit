@@ -1,0 +1,54 @@
+name: Policy Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/policy-shadow.yml"
+      - "src/mado_cockpit/action_gateway.py"
+      - "src/mado_cockpit/opendots_tools.py"
+      - "scripts/policy_shadow_smoke.py"
+      - "tests/test_action_gateway.py"
+      - "tests/test_opendots_tools.py"
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-equivalence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run focused M2.3 tests
+        run: |
+          set -o pipefail
+          pytest -q tests/test_action_gateway.py tests/test_opendots_tools.py | tee /tmp/m2.3-focused-tests.txt
+
+      - name: Run real Operator shadow and equivalence smoke
+        run: |
+          set -o pipefail
+          mkdir -p .mado/m2.3
+          python scripts/policy_shadow_smoke.py --root /tmp/mado-m2.3-fixture | tee .mado/m2.3/policy-shadow-smoke.json
+          cp -R /tmp/mado-m2.3-fixture/.mado/cockpit/action_decisions .mado/m2.3/action_decisions
+
+      - name: Upload M2.3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-shadow-evidence
+          path: |
+            .mado/m2.3/
+            /tmp/m2.3-focused-tests.txt
+          if-no-files-found: error
