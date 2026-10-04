@@ -1,5 +1,6 @@
 import asyncio
 import json
+import subprocess
 
 import pytest
 
@@ -16,6 +17,32 @@ from mado_cockpit.store import CockpitStore
 
 
 def _fixture(tmp_path):
+    subprocess.run(
+        ["git", "init", "-b", "main", str(tmp_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "user.email", "m2@example.test"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "user.name", "MCC M2 Fixture"],
+        check=True,
+    )
+    (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "add", "README.md"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "commit", "-m", "fixture"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
     store = CockpitStore(tmp_path)
     store.init(
         Project(
