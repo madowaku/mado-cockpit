@@ -4,11 +4,13 @@ import pytest
 
 from mado_cockpit.action_gateway import (
     ActionCandidate,
+    ActionInitiator,
     ActionPolicy,
     ActionPolicyGateway,
     ActionPolicyRefused,
     ActionRule,
     classify_external_mcp_effect,
+    compare_shadow_decision,
     evaluate_action_policy,
     mado_internal_action_policy,
 )
@@ -428,4 +430,395 @@ def test_receipt_stores_digest_not_raw_arguments(
     assert (
         payload["arguments_digest"]
         == candidate.arguments_digest
+    )
+
+
+
+def _allow_all_policy():
+    return ActionPolicy(
+        allow=(
+            ActionRule(
+                id="allow-all",
+                predicate=lambda candidate: True,
+                reason="Allow fixture action.",
+            ),
+        ),
+    )
+
+
+def _chat_candidate(
+    *,
+    context_id="thread-1",
+    **changes,
+):
+    return _candidate(
+        initiator=ActionInitiator(
+            kind="chat",
+            source="opendots:scout",
+            context_id=context_id,
+        ),
+        **changes,
+    )
+
+
+def test_initiator_changes_full_digest_not_equivalence_digest():
+    first = _chat_candidate(
+        context_id="thread-1",
+    )
+    second = _chat_candidate(
+        context_id="thread-2",
+    )
+
+    assert first.digest != second.digest
+    assert (
+        first.equivalence_digest
+        == second.equivalence_digest
+    )
+    assert (
+        first.fence_scope
+        != second.fence_scope
+    )
+
+
+def test_shadow_deny_is_observed_but_does_not_block_live_allow(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+    dispatched = []
+
+    result = gateway.execute(
+        _chat_candidate(),
+        policy=_allow_all_policy(),
+        shadow_policy=ActionPolicy(
+            deny=(
+                ActionRule(
+                    id="shadow-deny",
+                    predicate=lambda candidate: True,
+                    reason="Shadow would deny.",
+                ),
+            ),
+        ),
+        dispatch=lambda candidate: (
+            dispatched.append(
+                candidate.action
+            )
+            or "done"
+        ),
+    )
+
+    assert result == "done"
+    assert dispatched == [
+        "external_write"
+    ]
+    receipt = gateway.list()[0]
+    assert (
+        receipt["decision"]["allowed"]
+        is True
+    )
+    assert (
+        receipt["shadow_decision"][
+            "allowed"
+        ]
+        is False
+    )
+    assert (
+        receipt["shadow_delta"]
+        == "would_deny"
+    )
+    events = store.list_events()
+    assert any(
+        event["type"]
+        == "action.shadow.evaluated"
+        and event["subject"][
+            "shadow_delta"
+        ]
+        == "would_deny"
+        for event in events
+    )
+
+
+def test_shadow_allow_does_not_rescue_live_deny(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+    called = False
+
+    def dispatch(candidate):
+        nonlocal called
+        called = True
+
+    with pytest.raises(
+        ActionPolicyRefused,
+    ):
+        gateway.execute(
+            _chat_candidate(),
+            policy=ActionPolicy(),
+            shadow_policy=(
+                _allow_all_policy()
+            ),
+            dispatch=dispatch,
+        )
+
+    assert called is False
+    receipt = gateway.list()[0]
+    assert (
+        receipt["decision"]["allowed"]
+        is False
+    )
+    assert (
+        receipt["shadow_decision"][
+            "allowed"
+        ]
+        is True
+    )
+    assert (
+        receipt["shadow_delta"]
+        == "would_allow"
+    )
+
+
+def test_shadow_policy_error_is_observed_only(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+
+    def broken(candidate):
+        raise RuntimeError(
+            "shadow syntax error"
+        )
+
+    result = gateway.execute(
+        _chat_candidate(),
+        policy=_allow_all_policy(),
+        shadow_policy=ActionPolicy(
+            deny=(
+                ActionRule(
+                    id="broken-shadow",
+                    predicate=broken,
+                    reason="Broken shadow.",
+                ),
+            ),
+        ),
+        dispatch=lambda candidate: "done",
+    )
+
+    assert result == "done"
+    receipt = gateway.list()[0]
+    assert (
+        receipt["shadow_decision"][
+            "source"
+        ]
+        == "policy_error"
+    )
+    assert (
+        receipt["shadow_delta"]
+        == "would_deny"
+    )
+
+
+def test_refused_equivalent_action_is_fenced_in_same_context(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+    candidate = _chat_candidate()
+    called = False
+
+    with pytest.raises(
+        ActionPolicyRefused,
+    ):
+        gateway.execute(
+            candidate,
+            policy=ActionPolicy(),
+            dispatch=lambda current: None,
+        )
+
+    def dispatch(current):
+        nonlocal called
+        called = True
+
+    with pytest.raises(
+        ActionPolicyRefused,
+        match="equivalent action",
+    ):
+        gateway.execute(
+            candidate,
+            policy=_allow_all_policy(),
+            dispatch=dispatch,
+        )
+
+    assert called is False
+    receipts = sorted(
+        gateway.list(),
+        key=lambda item: item[
+            "recorded_at"
+        ],
+    )
+    assert len(receipts) == 2
+    assert (
+        receipts[1]["decision"][
+            "source"
+        ]
+        == "equivalent_fenced"
+    )
+    assert (
+        receipts[1][
+            "equivalent_to_receipt_id"
+        ]
+        == receipts[0]["id"]
+    )
+
+
+def test_pending_equivalent_action_is_fenced_before_second_dispatch(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+    candidate = _chat_candidate()
+    nested_called = False
+
+    def outer_dispatch(current):
+        nonlocal nested_called
+
+        def nested_dispatch(nested):
+            nonlocal nested_called
+            nested_called = True
+
+        with pytest.raises(
+            ActionPolicyRefused,
+            match="equivalent action",
+        ):
+            gateway.execute(
+                candidate,
+                policy=_allow_all_policy(),
+                dispatch=nested_dispatch,
+            )
+        return "outer-done"
+
+    result = gateway.execute(
+        candidate,
+        policy=_allow_all_policy(),
+        dispatch=outer_dispatch,
+    )
+
+    assert result == "outer-done"
+    assert nested_called is False
+    receipts = gateway.list()
+    fenced = next(
+        item
+        for item in receipts
+        if item["decision"]["source"]
+        == "equivalent_fenced"
+    )
+    original = next(
+        item
+        for item in receipts
+        if item["id"]
+        == fenced[
+            "equivalent_to_receipt_id"
+        ]
+    )
+    assert (
+        original["dispatch_status"]
+        == "dispatched"
+    )
+
+
+def test_new_initiator_context_can_intentionally_retry_equivalent_action(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+
+    with pytest.raises(
+        ActionPolicyRefused,
+    ):
+        gateway.execute(
+            _chat_candidate(
+                context_id="thread-1"
+            ),
+            policy=ActionPolicy(),
+            dispatch=lambda current: None,
+        )
+
+    result = gateway.execute(
+        _chat_candidate(
+            context_id="thread-2"
+        ),
+        policy=_allow_all_policy(),
+        dispatch=lambda current: "retried",
+    )
+
+    assert result == "retried"
+    receipts = gateway.list()
+    assert any(
+        item["dispatch_status"]
+        == "dispatched"
+        for item in receipts
+    )
+
+
+def test_receipt_separates_actor_and_initiator(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    gateway = ActionPolicyGateway(
+        store
+    )
+    candidate = _chat_candidate()
+
+    gateway.execute(
+        candidate,
+        policy=_allow_all_policy(),
+        dispatch=lambda current: None,
+    )
+
+    receipt = gateway.list()[0]
+    assert receipt["actor"] == "agent"
+    assert receipt["initiator"] == {
+        "kind": "chat",
+        "source": "opendots:scout",
+        "context_id": "thread-1",
+    }
+    assert (
+        receipt["equivalence_digest"]
+        == candidate.equivalence_digest
+    )
+    assert (
+        receipt["fence_scope"]
+        == candidate.fence_scope
+    )
+
+
+def test_compare_shadow_decision_reports_same():
+    live = evaluate_action_policy(
+        _allow_all_policy(),
+        _chat_candidate(),
+    )
+    shadow = evaluate_action_policy(
+        _allow_all_policy(),
+        _chat_candidate(),
+    )
+
+    assert (
+        compare_shadow_decision(
+            live,
+            shadow,
+        )
+        == "same"
     )
