@@ -126,3 +126,29 @@
   background: #fbfaf8;
   line-height: 1.5;
 }
+
+.mado-dogfood-page {
+  width: min(860px, calc(100% - 32px));
+  margin: 36px auto;
+  display: grid;
+  gap: 18px;
+}
+
+.mado-dogfood-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.mado-dogfood-heading h1,
+.mado-dogfood-heading p {
+  margin: 0;
+}
+
+.mado-dogfood-success {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--lavender);
+  font-weight: 600;
+}
