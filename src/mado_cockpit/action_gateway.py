@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field, replace
-from pathlib import Path
 from typing import Any, Callable, Literal, Mapping, TypeVar
 from uuid import uuid4
 
@@ -11,8 +10,15 @@ from .models import Event, utc_now
 from .store import CockpitStore
 
 
-ACTION_GATEWAY_VERSION = "MCC-M2.2"
+ACTION_GATEWAY_VERSION = "MCC-M2.3"
 ActionEffect = Literal["read", "write"]
+InitiatorKind = Literal[
+    "person",
+    "chat",
+    "routine",
+    "replay",
+    "system",
+]
 DecisionSource = Literal[
     "deny",
     "allow",
@@ -20,6 +26,12 @@ DecisionSource = Literal[
     "policy_error",
     "revalidation_error",
     "approval_changed",
+    "equivalent_fenced",
+]
+ShadowDelta = Literal[
+    "same",
+    "would_allow",
+    "would_deny",
 ]
 
 T = TypeVar("T")
@@ -62,6 +74,57 @@ def _digest(payload: Any) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class ActionInitiator:
+    kind: InitiatorKind = "system"
+    source: str = "cockpit"
+    context_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in {
+            "person",
+            "chat",
+            "routine",
+            "replay",
+            "system",
+        }:
+            raise RuntimeError(
+                "Unsupported action initiator kind"
+            )
+        if not self.source.strip():
+            raise RuntimeError(
+                "Action initiator source must not be empty"
+            )
+        if (
+            self.context_id is not None
+            and not self.context_id.strip()
+        ):
+            raise RuntimeError(
+                "Action initiator context_id must not be empty"
+            )
+
+    def to_dict(
+        self,
+    ) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "source": self.source,
+            "context_id": self.context_id,
+        }
+
+    @property
+    def fence_scope(
+        self,
+    ) -> str | None:
+        if self.context_id is None:
+            return None
+        return (
+            f"{self.kind}:"
+            f"{self.source}:"
+            f"{self.context_id}"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ActionCandidate:
     action: str
     effect: ActionEffect
@@ -71,6 +134,9 @@ class ActionCandidate:
         default_factory=dict
     )
     actor: str = "cockpit"
+    initiator: ActionInitiator = field(
+        default_factory=ActionInitiator
+    )
     capability: str | None = None
     mission_id: str | None = None
 
@@ -94,6 +160,13 @@ class ActionCandidate:
             raise RuntimeError(
                 "Action actor must not be empty"
             )
+        if not isinstance(
+            self.initiator,
+            ActionInitiator,
+        ):
+            raise RuntimeError(
+                "Action initiator must be ActionInitiator"
+            )
 
     @property
     def arguments_digest(self) -> str:
@@ -102,7 +175,9 @@ class ActionCandidate:
         )
 
     @property
-    def digest(self) -> str:
+    def equivalence_digest(
+        self,
+    ) -> str:
         return _digest(
             {
                 "action": self.action,
@@ -123,6 +198,25 @@ class ActionCandidate:
                 ),
             }
         )
+
+    @property
+    def digest(self) -> str:
+        return _digest(
+            {
+                "equivalence_digest": (
+                    self.equivalence_digest
+                ),
+                "initiator": (
+                    self.initiator.to_dict()
+                ),
+            }
+        )
+
+    @property
+    def fence_scope(
+        self,
+    ) -> str | None:
+        return self.initiator.fence_scope
 
     def with_target(
         self,
@@ -288,6 +382,19 @@ def evaluate_action_policy(
     )
 
 
+def compare_shadow_decision(
+    live: ActionDecision,
+    shadow: ActionDecision | None,
+) -> ShadowDelta | None:
+    if shadow is None:
+        return None
+    if live.allowed == shadow.allowed:
+        return "same"
+    if live.allowed:
+        return "would_deny"
+    return "would_allow"
+
+
 def classify_external_mcp_effect(
     annotations: Mapping[
         str,
@@ -383,6 +490,9 @@ class ActionPolicyGateway:
         | None = None,
         approved_digest: str
         | None = None,
+        shadow_policy: ActionPolicy
+        | None = None,
+        fence_equivalent: bool = True,
     ) -> T:
         current = candidate
         revalidation_error: str | None = (
@@ -426,6 +536,8 @@ class ActionPolicyGateway:
                 approved_digest=(
                     approved_digest
                 ),
+                shadow_decision=None,
+                equivalent_to_receipt_id=None,
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -454,6 +566,56 @@ class ActionPolicyGateway:
                 approved_digest=(
                     approved_digest
                 ),
+                shadow_decision=None,
+                equivalent_to_receipt_id=None,
+            )
+            raise ActionPolicyRefused(
+                decision.reason,
+                receipt_id=receipt["id"],
+            )
+
+        shadow_decision = (
+            evaluate_action_policy(
+                shadow_policy,
+                current,
+            )
+            if shadow_policy is not None
+            else None
+        )
+
+        equivalent = (
+            self._find_equivalent_fence(
+                current
+            )
+            if fence_equivalent
+            else None
+        )
+        if equivalent is not None:
+            decision = ActionDecision(
+                allowed=False,
+                source="equivalent_fenced",
+                rule_id=None,
+                reason=(
+                    "An equivalent action is already "
+                    "pending or was refused in this "
+                    "initiator context."
+                ),
+            )
+            receipt = self._record_decision(
+                candidate=candidate,
+                current=current,
+                decision=decision,
+                approved_digest=(
+                    approved_digest
+                ),
+                shadow_decision=(
+                    shadow_decision
+                ),
+                equivalent_to_receipt_id=(
+                    str(
+                        equivalent["id"]
+                    )
+                ),
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -473,6 +635,10 @@ class ActionPolicyGateway:
             approved_digest=(
                 approved_digest
             ),
+            shadow_decision=(
+                shadow_decision
+            ),
+            equivalent_to_receipt_id=None,
         )
 
         if not decision.allowed:
@@ -537,6 +703,50 @@ class ActionPolicyGateway:
             )
         ]
 
+    def _find_equivalent_fence(
+        self,
+        candidate: ActionCandidate,
+    ) -> dict[str, Any] | None:
+        scope = candidate.fence_scope
+        if scope is None:
+            return None
+
+        receipts = sorted(
+            self.list(),
+            key=lambda item: str(
+                item.get(
+                    "recorded_at",
+                    "",
+                )
+            ),
+            reverse=True,
+        )
+        for receipt in receipts:
+            if (
+                receipt.get(
+                    "equivalence_digest"
+                )
+                != candidate.equivalence_digest
+            ):
+                continue
+            if (
+                receipt.get(
+                    "fence_scope"
+                )
+                != scope
+            ):
+                continue
+            if (
+                receipt.get("status")
+                == "refused"
+                or receipt.get(
+                    "dispatch_status"
+                )
+                == "pending"
+            ):
+                return receipt
+        return None
+
     def _record_decision(
         self,
         *,
@@ -546,6 +756,10 @@ class ActionPolicyGateway:
         decision: ActionDecision,
         approved_digest: str
         | None,
+        shadow_decision: ActionDecision
+        | None,
+        equivalent_to_receipt_id: str
+        | None,
     ) -> dict[str, Any]:
         receipt_id = (
             "actdec_"
@@ -553,6 +767,12 @@ class ActionPolicyGateway:
         )
         authoritative = (
             current or candidate
+        )
+        shadow_delta = (
+            compare_shadow_decision(
+                decision,
+                shadow_decision,
+            )
         )
         payload = {
             "schema": (
@@ -582,6 +802,9 @@ class ActionPolicyGateway:
             "actor": (
                 authoritative.actor
             ),
+            "initiator": (
+                authoritative.initiator.to_dict()
+            ),
             "capability": (
                 authoritative.capability
             ),
@@ -597,6 +820,12 @@ class ActionPolicyGateway:
             "arguments_digest": (
                 authoritative.arguments_digest
             ),
+            "equivalence_digest": (
+                authoritative.equivalence_digest
+            ),
+            "fence_scope": (
+                authoritative.fence_scope
+            ),
             "candidate_digest": (
                 candidate.digest
             ),
@@ -608,8 +837,19 @@ class ActionPolicyGateway:
             "approved_digest": (
                 approved_digest
             ),
+            "equivalent_to_receipt_id": (
+                equivalent_to_receipt_id
+            ),
             "decision": (
                 decision.to_dict()
+            ),
+            "shadow_decision": (
+                shadow_decision.to_dict()
+                if shadow_decision is not None
+                else None
+            ),
+            "shadow_delta": (
+                shadow_delta
             ),
             "dispatched_at": None,
             "error": None,
@@ -618,6 +858,38 @@ class ActionPolicyGateway:
             receipt_id,
             payload,
         )
+        if shadow_decision is not None:
+            self.store.append_event(
+                Event(
+                    type=(
+                        "action.shadow.evaluated"
+                    ),
+                    mission_id=(
+                        authoritative.mission_id
+                    ),
+                    actor="policy_gateway",
+                    subject={
+                        "receipt_id": (
+                            receipt_id
+                        ),
+                        "action": (
+                            authoritative.action
+                        ),
+                        "live_allowed": (
+                            decision.allowed
+                        ),
+                        "shadow_allowed": (
+                            shadow_decision.allowed
+                        ),
+                        "shadow_source": (
+                            shadow_decision.source
+                        ),
+                        "shadow_delta": (
+                            shadow_delta
+                        ),
+                    },
+                )
+            )
         self.store.append_event(
             Event(
                 type=(
@@ -648,6 +920,15 @@ class ActionPolicyGateway:
                     ),
                     "rule_id": (
                         decision.rule_id
+                    ),
+                    "initiator_kind": (
+                        authoritative.initiator.kind
+                    ),
+                    "equivalence_digest": (
+                        authoritative.equivalence_digest
+                    ),
+                    "equivalent_to_receipt_id": (
+                        equivalent_to_receipt_id
                     ),
                 },
             )
