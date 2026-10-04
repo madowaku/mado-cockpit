@@ -14,7 +14,7 @@ from .models import Event, utc_now
 from .store import CockpitStore
 
 
-ACTION_GATEWAY_VERSION = "MCC-M2.3"
+ACTION_GATEWAY_VERSION = "MCC-M2.4"
 ActionEffect = Literal["read", "write"]
 InitiatorKind = Literal[
     "person",
@@ -601,6 +601,7 @@ class ActionPolicyGateway:
                 ),
                 shadow_decision=None,
                 equivalent_to_receipt_id=None,
+                control_lease=None,
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -698,7 +699,9 @@ class ActionPolicyGateway:
                         equivalent["id"]
                     )
                 ),
-                control_lease=None,
+                control_lease=(
+                    active_control
+                ),
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -722,7 +725,9 @@ class ActionPolicyGateway:
                 shadow_decision
             ),
             equivalent_to_receipt_id=None,
-            control_lease=None,
+            control_lease=(
+                active_control
+            ),
         )
 
         if not decision.allowed:
@@ -1036,6 +1041,12 @@ class ActionPolicyGateway:
                     ),
                     "equivalent_to_receipt_id": (
                         equivalent_to_receipt_id
+                    ),
+                    "control_lease_id": (
+                        control_lease["id"]
+                        if control_lease
+                        is not None
+                        else None
                     ),
                 },
             )
