@@ -1,0 +1,82 @@
+name: Action Policy Gateway
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/action-policy-gateway.yml"
+      - "src/mado_cockpit/action_gateway.py"
+      - "src/mado_cockpit/opendots_tools.py"
+      - "src/mado_cockpit/mcp_server.py"
+      - "scripts/action_policy_gateway_smoke.py"
+      - "tests/test_action_gateway.py"
+      - "tests/test_opendots_tools.py"
+      - "tests/test_opendots_renderers.py"
+
+permissions:
+  contents: read
+
+jobs:
+  governed-mcp-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run focused M2.2 tests
+        run: |
+          pytest -q             tests/test_action_gateway.py             tests/test_opendots_tools.py             tests/test_opendots_renderers.py             | tee /tmp/m2.2-focused-tests.txt
+
+      - name: Prepare real Cockpit fixture
+        run: |
+          mkdir -p .mado/m2.2
+          python scripts/action_policy_gateway_smoke.py             prepare             --root /tmp/mado-m2.2-fixture             | tee .mado/m2.2/fixture.json
+          OPERATOR_ID="$(python -c "import json; print(json.load(open('.mado/m2.2/fixture.json'))['operator_id'])")"
+          GATE_ID="$(python -c "import json; print(json.load(open('.mado/m2.2/fixture.json'))['gate_id'])")"
+          echo "M2_2_OPERATOR_ID=$OPERATOR_ID" >> "$GITHUB_ENV"
+          echo "M2_2_GATE_ID=$GATE_ID" >> "$GITHUB_ENV"
+
+      - name: Start MCP server
+        run: |
+          mado-cockpit-mcp             --root /tmp/mado-m2.2-fixture             --host 127.0.0.1             --port 8788             > .mado/m2.2/server.log 2>&1 &
+          echo "$!" > .mado/m2.2/server.pid
+
+      - name: Governed MCP write smoke
+        run: |
+          set -o pipefail
+          for attempt in $(seq 1 30); do
+            if python scripts/action_policy_gateway_smoke.py               smoke               --root /tmp/mado-m2.2-fixture               --url http://127.0.0.1:8788/mcp               --operator-id "$M2_2_OPERATOR_ID"               --gate-id "$M2_2_GATE_ID"               | tee .mado/m2.2/http-write-smoke.json; then
+              cp -R                 /tmp/mado-m2.2-fixture/.mado/cockpit/action_decisions                 .mado/m2.2/action_decisions
+              exit 0
+            fi
+            sleep 0.5
+          done
+          cat .mado/m2.2/server.log || true
+          exit 1
+
+      - name: Stop MCP server
+        if: always()
+        run: |
+          if [ -f .mado/m2.2/server.pid ]; then
+            kill "$(cat .mado/m2.2/server.pid)" || true
+          fi
+
+      - name: Upload M2.2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-policy-gateway-evidence
+          path: |
+            .mado/m2.2/
+            /tmp/m2.2-focused-tests.txt
+          if-no-files-found: error
