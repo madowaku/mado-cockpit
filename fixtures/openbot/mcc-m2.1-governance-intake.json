@@ -1,0 +1,178 @@
+{
+  "schema": "mado.openbot-governance-intake.v1",
+  "version": "MCC-M2.1",
+  "inspected_at": "2026-10-04",
+  "upstream": {
+    "repository": "CopilotKit/OpenBot",
+    "commit": "cb5dc32a44517622c6db4e527e61d3abb389b43c",
+    "release": "v0.1.0",
+    "files": {
+      "server/src/computer/policy.ts": "94bc46ad3a74bdb56ad84f86527057ecba6c735e",
+      "server/src/computer/gateway.ts": "20465301b24c073354819d3f953ed5b7086ba6c2",
+      "server/src/plugins/mcp.ts": "5906a535f9d167bf8a47da95739f446b2fb4f01b",
+      "server/src/approvals/service.ts": "295446f13d5c41244515f9443c5d94ce503f8372",
+      "server/src/approvals/types.ts": "1834d55e7badd47ffd8385ce418811b6502cc223",
+      "server/src/audit.ts": "9904538313346f37c81108cb9d9199c17f97d425"
+    }
+  },
+  "principles": [
+    {
+      "id": "execution_time_default_deny",
+      "summary": "An action is not executable merely because a capability exists; execution-time policy must positively permit it.",
+      "source_files": [
+        "server/src/computer/policy.ts",
+        "server/src/computer/gateway.ts"
+      ],
+      "mado_state": "partial",
+      "mado_evidence": [
+        "src/mado_cockpit/capabilities.py",
+        "src/mado_cockpit/mcp_server.py"
+      ],
+      "gap": "MADO has capability-selection policy and bounded MCP tools, but no universal execution-time action policy gate.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "deny_precedes_allow",
+      "summary": "Explicit refusal must win over broader permission.",
+      "source_files": [
+        "server/src/computer/policy.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "No shared action-policy vocabulary currently models deny-before-allow precedence.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "broken_policy_fails_closed",
+      "summary": "A policy evaluation error must refuse rather than widen authority.",
+      "source_files": [
+        "server/src/computer/policy.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "MADO rejects invalid capability metadata, but has no execution-time rule evaluator whose failures are defined as refusal.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "audit_before_act",
+      "summary": "The decision record must exist before the side effect is dispatched.",
+      "source_files": [
+        "server/src/computer/gateway.ts",
+        "server/src/audit.ts"
+      ],
+      "mado_state": "partial",
+      "mado_evidence": [
+        "src/mado_cockpit/store.py",
+        "src/mado_cockpit/gates.py"
+      ],
+      "gap": "MADO has a durable event ledger, but not a single action gateway proving every future side effect has a pre-dispatch decision receipt.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "server_resolves_authoritative_target",
+      "summary": "Policy should decide on server-resolved target facts, not model-supplied labels or descriptions.",
+      "source_files": [
+        "server/src/computer/gateway.ts"
+      ],
+      "mado_state": "partial",
+      "mado_evidence": [
+        "src/mado_cockpit/gates.py",
+        "src/mado_cockpit/operator.py"
+      ],
+      "gap": "Stale Human Gate IDs are reread and rejected, but a generic action target-resolution contract does not exist.",
+      "priority": "p1",
+      "target": "MCC-M2.3"
+    },
+    {
+      "id": "unknown_mcp_effect_is_write",
+      "summary": "An external MCP tool not positively known to be read-only is treated as a write.",
+      "source_files": [
+        "server/src/plugins/mcp.ts"
+      ],
+      "mado_state": "partial",
+      "mado_evidence": [
+        "src/mado_cockpit/mcp_server.py"
+      ],
+      "gap": "MADO correctly annotates its own five MCP tools, but does not yet govern arbitrary external MCP tool effects.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "approval_is_not_execution_authority",
+      "summary": "An approved action must be re-resolved and revalidated immediately before execution.",
+      "source_files": [
+        "server/src/approvals/service.ts"
+      ],
+      "mado_state": "partial",
+      "mado_evidence": [
+        "src/mado_cockpit/gates.py",
+        "src/mado_cockpit/operator.py"
+      ],
+      "gap": "Human Gate resolution validates current Gate identity, but arbitrary targets, grants and policy are not yet revalidated under a generic action contract.",
+      "priority": "p0",
+      "target": "MCC-M2.2"
+    },
+    {
+      "id": "equivalent_action_decline_fencing",
+      "summary": "A declined or already-pending equivalent write is not silently retried in the same conversational context.",
+      "source_files": [
+        "server/src/approvals/service.ts",
+        "server/src/approvals/types.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "MADO does not yet compute stable action equivalence digests across retries.",
+      "priority": "p1",
+      "target": "MCC-M2.3"
+    },
+    {
+      "id": "actor_and_initiator_are_distinct",
+      "summary": "Whose authority is used and what caused the run are independent policy dimensions.",
+      "source_files": [
+        "server/src/computer/policy.ts",
+        "server/src/audit.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "Cockpit events have actor strings, but there is no first-class initiator kind for person, schedule, automation or system replay.",
+      "priority": "p1",
+      "target": "MCC-M2.3"
+    },
+    {
+      "id": "human_control_fences_automation",
+      "summary": "While a person has taken control of a computer/session, automated actions are refused rather than queued.",
+      "source_files": [
+        "server/src/computer/gateway.ts",
+        "server/src/audit.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "MADO has Human Question Gates but no human-control lease/fence for interactive browser or computer takeover.",
+      "priority": "p2",
+      "target": "MCC-M2.4"
+    },
+    {
+      "id": "policy_dry_run",
+      "summary": "Governance rules can be evaluated and audited without enforcing them, to observe real traffic before promotion.",
+      "source_files": [
+        "server/src/computer/policy.ts"
+      ],
+      "mado_state": "missing",
+      "mado_evidence": [],
+      "gap": "No shadow policy mode exists for future action rules.",
+      "priority": "p1",
+      "target": "MCC-M2.3"
+    }
+  ],
+  "adoption_rules": {
+    "copy_code": false,
+    "depend_on_openbot_packages": false,
+    "preserve_mado_source_of_truth": true,
+    "adopt_protocol_patterns_only": true,
+    "next_milestone": "MCC-M2.2 Action Policy Gateway"
+  }
+}
