@@ -1028,16 +1028,24 @@ def test_release_removes_automation_fence_without_leaving_retry_fence(
     assert result == "automation-resumed"
     receipts = gateway.list()
     assert len(receipts) == 2
-    assert (
-        receipts[0]["decision"]["source"]
+    fenced = next(
+        item
+        for item in receipts
+        if item["decision"]["source"]
         == "human_control_fenced"
     )
-    assert (
-        receipts[1]["dispatch_status"]
+    resumed = next(
+        item
+        for item in receipts
+        if item["dispatch_status"]
         == "dispatched"
     )
     assert (
-        receipts[1]["control_lease"]
+        fenced["dispatch_status"]
+        == "not_dispatched"
+    )
+    assert (
+        resumed["control_lease"]
         is None
     )
 
