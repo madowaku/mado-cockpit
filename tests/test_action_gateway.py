@@ -980,7 +980,7 @@ def test_different_person_cannot_act_under_someone_elses_control_lease(
     )
 
 
-def test_release_removes_automation_fence(
+def test_release_removes_automation_fence_without_leaving_retry_fence(
     tmp_path,
 ):
     store = _store(tmp_path)
@@ -996,27 +996,48 @@ def test_release_removes_automation_fence(
         holder="human:owner",
         ttl_seconds=120,
     )
-    leases.release(
-        lease["id"],
-        holder="human:owner",
-    )
     gateway = ActionPolicyGateway(
         store,
         control_leases=leases,
     )
+    candidate = _chat_candidate(
+        control_scope=scope,
+    )
+
+    with pytest.raises(
+        ActionPolicyRefused,
+        match="Human control is active",
+    ):
+        gateway.execute(
+            candidate,
+            policy=_allow_all_policy(),
+            dispatch=lambda current: None,
+        )
+
+    leases.release(
+        lease["id"],
+        holder="human:owner",
+    )
 
     result = gateway.execute(
-        _chat_candidate(
-            control_scope=scope,
-        ),
+        candidate,
         policy=_allow_all_policy(),
         dispatch=lambda current: "automation-resumed",
     )
 
     assert result == "automation-resumed"
-    receipt = gateway.list()[0]
+    receipts = gateway.list()
+    assert len(receipts) == 2
     assert (
-        receipt["control_lease"]
+        receipts[0]["decision"]["source"]
+        == "human_control_fenced"
+    )
+    assert (
+        receipts[1]["dispatch_status"]
+        == "dispatched"
+    )
+    assert (
+        receipts[1]["control_lease"]
         is None
     )
 
@@ -1040,3 +1061,81 @@ def test_control_scope_changes_equivalence_identity():
         != second.equivalence_digest
     )
     assert first.digest != second.digest
+
+
+
+def test_expired_human_control_fence_allows_automation_to_resume(
+    tmp_path,
+):
+    from datetime import (
+        datetime,
+        timedelta,
+        timezone,
+    )
+
+    class Clock:
+        def __init__(self):
+            self.value = datetime(
+                2026,
+                10,
+                4,
+                7,
+                0,
+                tzinfo=timezone.utc,
+            )
+
+        def now(self):
+            return self.value
+
+        def advance(self, seconds):
+            self.value += timedelta(
+                seconds=seconds
+            )
+
+    store = _store(tmp_path)
+    clock = Clock()
+    leases = ControlLeaseManager(
+        store,
+        now=clock.now,
+    )
+    scope = ControlScope(
+        "computer",
+        "computer-expiring",
+    )
+    leases.acquire(
+        scope,
+        holder="human:owner",
+        ttl_seconds=15,
+    )
+    gateway = ActionPolicyGateway(
+        store,
+        control_leases=leases,
+    )
+    candidate = _chat_candidate(
+        control_scope=scope,
+    )
+
+    with pytest.raises(
+        ActionPolicyRefused,
+        match="Human control is active",
+    ):
+        gateway.execute(
+            candidate,
+            policy=_allow_all_policy(),
+            dispatch=lambda current: None,
+        )
+
+    clock.advance(16)
+
+    result = gateway.execute(
+        candidate,
+        policy=_allow_all_policy(),
+        dispatch=lambda current: "expired-resumed",
+    )
+
+    assert result == "expired-resumed"
+    assert any(
+        event["type"]
+        == "control.lease.expired"
+        for event in store.list_events()
+    )
