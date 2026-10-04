@@ -284,37 +284,6 @@ class OpenDotsToolSurface:
                 raise OpenDotsToolError(
                     "gate_id must be a non-empty string up to 128 characters"
                 )
-            if gate_id:
-                current_response = self._runtime(
-                    call,
-                    action="operator.status",
-                    operator_id=operator_id,
-                    payload={},
-                )
-                current_operator = self._runtime_data(
-                    current_response
-                )
-                current_gate_view = current_operator.get(
-                    "human_gate"
-                )
-                current_gate = (
-                    current_gate_view.get("gate")
-                    if isinstance(
-                        current_gate_view,
-                        Mapping,
-                    )
-                    else None
-                )
-                if (
-                    not isinstance(current_gate, Mapping)
-                    or str(current_gate.get("id"))
-                    != gate_id.strip()
-                ):
-                    raise OpenDotsToolError(
-                        "gate_id no longer matches the current open "
-                        "Human Question Gate"
-                    )
-
             choice = arguments.get("choice")
             choose_for_me = arguments.get(
                 "choose_for_me",
