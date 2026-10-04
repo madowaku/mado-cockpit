@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -20,6 +21,17 @@ from .store import CockpitStore
 
 _MAX_BODY_BYTES = 512 * 1024
 _EXCERPT_CHARS = 500
+_URL_CREDENTIALS = re.compile(
+    r"(https?://)([^/@\s]+)@",
+    re.IGNORECASE,
+)
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b(access_token|api_key|token|password|cookie|authorization)"
+    r"=([^&\s]+)"
+)
+_BEARER = re.compile(
+    r"(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=-]+"
+)
 
 _GITHUB_REPO = "octocat/Hello-World"
 _GITHUB_EXPECTED = "octocat/Hello-World"
@@ -58,8 +70,25 @@ class ExternalWebProbeEvidence:
         return asdict(self)
 
 
+def _redact(value: str) -> str:
+    value = _URL_CREDENTIALS.sub(
+        r"\1***@",
+        value,
+    )
+    value = _SECRET_ASSIGNMENT.sub(
+        r"\1=***",
+        value,
+    )
+    return _BEARER.sub(
+        r"\1 ***",
+        value,
+    )
+
+
 def _safe_excerpt(value: str) -> str:
-    compact = " ".join(value.split())
+    compact = " ".join(
+        _redact(value).split()
+    )
     return compact[:_EXCERPT_CHARS]
 
 
