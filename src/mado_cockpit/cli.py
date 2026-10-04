@@ -9,6 +9,10 @@ from .agent_reach import (
     AgentReachDoctorClient,
     sync_agent_reach_capabilities,
 )
+from .agent_reach_probe import (
+    ExternalWebEvidenceStore,
+    run_and_record_live_probes,
+)
 from .capabilities import (
     CapabilityManager,
     CapabilityPolicy,
@@ -495,9 +499,32 @@ def build_parser() -> argparse.ArgumentParser:
             help="Refresh Agent Reach-managed capability descriptors",
         )
     )
+    capability_agent_reach_probe = (
+        capability_agent_reach_sub.add_parser(
+            "probe",
+            help="Run safe public-read live probes and record evidence",
+        )
+    )
+    capability_agent_reach_probe.add_argument(
+        "--channel",
+        action="append",
+        choices=["github", "rss", "web"],
+        dest="probe_channels",
+    )
+    capability_agent_reach_evidence = (
+        capability_agent_reach_sub.add_parser(
+            "evidence",
+            help="List recorded external-web probe evidence",
+        )
+    )
+    capability_agent_reach_evidence.add_argument(
+        "--channel",
+        choices=["github", "rss", "web"],
+    )
     for agent_reach_parser in (
         capability_agent_reach_doctor,
         capability_agent_reach_sync,
+        capability_agent_reach_probe,
     ):
         agent_reach_parser.add_argument(
             "--agent-reach-binary",
@@ -1440,6 +1467,16 @@ def main(
             return 0
 
         if args.capability_command == "agent-reach":
+            if args.agent_reach_command == "evidence":
+                _print_json(
+                    ExternalWebEvidenceStore(
+                        store
+                    ).list(
+                        channel=args.channel
+                    )
+                )
+                return 0
+
             client = AgentReachDoctorClient(
                 args.agent_reach_binary,
                 timeout=args.timeout,
@@ -1457,6 +1494,19 @@ def main(
                     sync_agent_reach_capabilities(
                         manager,
                         snapshot,
+                    )
+                )
+                return 0
+
+            if args.agent_reach_command == "probe":
+                _print_json(
+                    run_and_record_live_probes(
+                        store,
+                        snapshot,
+                        channels=(
+                            args.probe_channels
+                        ),
+                        timeout=args.timeout,
                     )
                 )
                 return 0
