@@ -573,3 +573,144 @@ def test_unknown_tool_is_rejected_before_cockpit_execution(tmp_path):
         )
 
     assert runtime.calls == []
+
+
+
+def test_advance_write_records_policy_receipt(tmp_path):
+    surface, runtime, store = setup_surface(tmp_path)
+
+    result = surface.handle(
+        call(
+            "mado_advance_mission",
+            {"operator_id": "opr_fixture"},
+        )
+    )
+
+    assert result["ok"] is True
+    receipts = sorted(
+        (
+            store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    assert len(receipts) == 1
+    receipt = json.loads(
+        receipts[0].read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        receipt["action"]
+        == "mado_advance_mission"
+    )
+    assert receipt["effect"] == "write"
+    assert (
+        receipt["decision"]["allowed"]
+        is True
+    )
+    assert (
+        receipt["dispatch_status"]
+        == "dispatched"
+    )
+    assert runtime.calls == [
+        ("advance", "opr_fixture")
+    ]
+
+
+def test_bound_human_gate_revalidates_before_resolution(tmp_path):
+    surface, runtime, store = setup_surface(tmp_path)
+    runtime.inspect = lambda operator_id: operator_view(
+        operator_id,
+        status="awaiting_human",
+        gate=gate_view(),
+    )
+
+    result = surface.handle(
+        call(
+            "mado_answer_human_gate",
+            {
+                "operator_id": "opr_fixture",
+                "gate_id": "gate_1",
+                "choice": "stay_free",
+            },
+        )
+    )
+
+    assert result["ok"] is True
+    assert (
+        runtime.calls[-1][0]
+        == "resolve_gate"
+    )
+    receipt_path = next(
+        (
+            store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    receipt = json.loads(
+        receipt_path.read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        receipt["target"]["gate_id"]
+        == "gate_1"
+    )
+    assert (
+        receipt["approved_digest"]
+        == receipt[
+            "authoritative_digest"
+        ]
+    )
+
+
+def test_stale_bound_gate_is_durable_policy_refusal(tmp_path):
+    surface, runtime, store = setup_surface(tmp_path)
+    runtime.inspect = lambda operator_id: operator_view(
+        operator_id,
+        status="awaiting_human",
+        gate=gate_view(),
+    )
+
+    result = surface.handle(
+        call(
+            "mado_answer_human_gate",
+            {
+                "operator_id": "opr_fixture",
+                "gate_id": "gate_stale",
+                "choice": "stay_free",
+            },
+        )
+    )
+
+    assert result["ok"] is False
+    assert (
+        result["error"]["code"]
+        == "action_refused"
+    )
+    assert "no longer matches" in (
+        result["error"]["message"]
+    )
+    assert not any(
+        item[0] == "resolve_gate"
+        for item in runtime.calls
+    )
+    receipt_path = next(
+        (
+            store.base
+            / "action_decisions"
+        ).glob("*.json")
+    )
+    receipt = json.loads(
+        receipt_path.read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        receipt["decision"]["source"]
+        == "revalidation_error"
+    )
+    assert (
+        receipt["dispatch_status"]
+        == "not_dispatched"
+    )
