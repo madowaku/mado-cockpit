@@ -53,6 +53,7 @@ jobs:
       - name: Apply M1.9 overlay and create Cockpit fixture
         working-directory: cockpit
         run: |
+          set -o pipefail
           python -m mado_cockpit.opendots_browser_chat \
             --opendots-root ../opendots \
             --apply \
@@ -116,6 +117,7 @@ jobs:
           MADO_M1_9_OPERATOR_ID: ${{ env.MADO_M1_9_OPERATOR_ID }}
           MADO_M1_9_EVIDENCE_DIR: ${{ github.workspace }}/cockpit/.mado/cockpit/integrations/opendots/browser-chat/${{ github.run_id }}
         run: |
+          set -o pipefail
           mkdir -p "$MADO_M1_9_EVIDENCE_DIR"
           npx tsx scripts/mado-browser-chat-e2e.ts \
             | tee "$MADO_M1_9_EVIDENCE_DIR/browser-chat-result.json"
@@ -124,10 +126,17 @@ jobs:
       - name: Verify Cockpit state after normal Chat
         working-directory: cockpit
         run: |
+          set -o pipefail
           python -m mado_cockpit.opendots_browser_chat \
             --opendots-root ../opendots \
             --assert-resolved "$MADO_M1_9_OPERATOR_ID" \
             | tee ".mado/cockpit/integrations/opendots/browser-chat/${{ github.run_id }}/cockpit-final.json"
+
+      - name: Dump OpenDots server log on failure
+        if: failure()
+        run: |
+          echo "----- OpenDots M1.9 server log -----"
+          cat /tmp/opendots-m1.9-server.log || true
 
       - name: Stop OpenDots
         if: always()
