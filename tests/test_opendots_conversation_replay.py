@@ -21,7 +21,7 @@ def test_replay_script_requires_two_agent_runs():
     assert "mcc-m1.7-run-1" in source
     assert "mcc-m1.7-run-2" in source
     assert "mado_check_mission" in source
-    assert "mado_review_human_gate" in source
+    assert "madoHumanGateReviewTool.name" in source
     assert "mado_answer_human_gate" in source
     assert "human-review-result" in source
     assert "stay_free" in source
