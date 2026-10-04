@@ -276,10 +276,6 @@ class OpenDotsBrowserChatHarness:
             block = """    // MADO_COCKPIT_M1_9_LOCAL_RUNTIME
     if (madoDeterministicChat()) {
       const runtime = new CopilotRuntime({
-        identifyUser: async () => ({
-          id: workspace.ownerId,
-          name: 'OpenDots owner',
-        }),
         agents: async () =>
           Object.fromEntries(
             workspace
@@ -289,7 +285,6 @@ class OpenDotsBrowserChatHarness:
                 new DotAgent(store, workspace, config, dot.id),
               ]),
           ),
-        generateThreadNames: false,
       });
       this.handler = createCopilotHonoHandler({
         runtime,
