@@ -305,6 +305,27 @@ Use `mado-cockpit capability agent-reach doctor` to inspect health and `mado-coc
 
 See `docs/MCC-M1.7_AGENT_REACH_ADAPTER.md` for the execution and security contract.
 
+### MCC-M1.8 Agent Reach Live Probe / External Web Evidence
+
+Agent Reach health can now be verified with fixed, read-only public probes before a route is trusted as externally readable.
+
+```text
+doctor says routable
+        ↓
+public live probe
+        ↓
+expected content?
+   yes / no
+    ↓     ↓
+ evidence  downgrade to unknown
+```
+
+The first probes cover GitHub, RSS, and Web. Successful reads persist SHA-256/size/excerpt evidence under `.mado/cockpit/external_web_evidence/agent_reach/`; full remote bodies are not stored.
+
+Run `mado-cockpit capability agent-reach probe` to verify all supported routes, or add repeated `--channel github|rss|web` flags. Inspect history with `mado-cockpit capability agent-reach evidence`.
+
+See `docs/MCC-M1.8_AGENT_REACH_LIVE_PROBE.md`.
+
 ## Quick start
 
 ```bash
