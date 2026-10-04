@@ -5,6 +5,10 @@ import json
 import os
 from pathlib import Path
 
+from .agent_reach import (
+    AgentReachDoctorClient,
+    sync_agent_reach_capabilities,
+)
 from .capabilities import (
     CapabilityManager,
     CapabilityPolicy,
@@ -468,6 +472,45 @@ def build_parser() -> argparse.ArgumentParser:
     capability_bindings.add_argument(
         "--worker",
     )
+
+    capability_agent_reach = capability_sub.add_parser(
+        "agent-reach",
+        help="Inspect or sync Agent Reach external-web capabilities",
+    )
+    capability_agent_reach_sub = (
+        capability_agent_reach.add_subparsers(
+            dest="agent_reach_command",
+            required=True,
+        )
+    )
+    capability_agent_reach_doctor = (
+        capability_agent_reach_sub.add_parser(
+            "doctor",
+            help="Run read-only Agent Reach health discovery",
+        )
+    )
+    capability_agent_reach_sync = (
+        capability_agent_reach_sub.add_parser(
+            "sync",
+            help="Refresh Agent Reach-managed capability descriptors",
+        )
+    )
+    for agent_reach_parser in (
+        capability_agent_reach_doctor,
+        capability_agent_reach_sync,
+    ):
+        agent_reach_parser.add_argument(
+            "--agent-reach-binary",
+            default=os.environ.get(
+                "MADO_AGENT_REACH_BIN",
+                "agent-reach",
+            ),
+        )
+        agent_reach_parser.add_argument(
+            "--timeout",
+            type=float,
+            default=20.0,
+        )
 
     operator = sub.add_parser(
         "operator",
@@ -1395,6 +1438,28 @@ def main(
                 )
             )
             return 0
+
+        if args.capability_command == "agent-reach":
+            client = AgentReachDoctorClient(
+                args.agent_reach_binary,
+                timeout=args.timeout,
+            )
+            snapshot = client.doctor()
+
+            if args.agent_reach_command == "doctor":
+                _print_json(
+                    snapshot.to_dict()
+                )
+                return 0
+
+            if args.agent_reach_command == "sync":
+                _print_json(
+                    sync_agent_reach_capabilities(
+                        manager,
+                        snapshot,
+                    )
+                )
+                return 0
 
     if args.command == "operator":
         manager = OperatorManager(store)
