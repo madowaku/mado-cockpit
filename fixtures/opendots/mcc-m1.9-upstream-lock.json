@@ -1,0 +1,12 @@
+{
+  "schema": "mado.opendots.m1.9-upstream-lock.v1",
+  "version": "MCC-M1.9",
+  "upstream": {
+    "repository": "CopilotKit/OpenDots",
+    "branch": "main",
+    "locked_files": {
+      "src/server/platform.ts": "7d19ad474ba87e6500228980b99476590acaec16",
+      "src/server/app.ts": "fc9bae5454b509ce325a2e76a9ea1308e7347cdd"
+    }
+  }
+}
