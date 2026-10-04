@@ -109,6 +109,11 @@ class OpenDotsBrowserChatHarness:
         base = self.base.apply()
         changed: list[str] = []
 
+        if self._patch_dot_agent_readiness():
+            changed.append(
+                "src/server/dot-agent.ts"
+            )
+
         for source_rel, target_rel in OVERLAY:
             source = self.cockpit_root / source_rel
             target = self.opendots_root / target_rel
@@ -239,6 +244,49 @@ class OpenDotsBrowserChatHarness:
             "human_gate": None,
             "next_action": view["next_action"],
         }
+
+    def _patch_dot_agent_readiness(self) -> bool:
+        path = (
+            self.opendots_root
+            / "src/server/dot-agent.ts"
+        )
+        text = path.read_text(
+            encoding="utf-8"
+        )
+        original = text
+        marker = (
+            "// MADO_COCKPIT_M1_9_DOT_READY\n"
+        )
+        if marker not in text:
+            old = """        if (
+          !this.config.intelligenceKey ||
+          !this.config.apiKey ||
+          !this.config.model
+        )
+          throw new Error('Intelligence and model configuration are required.');
+"""
+            new = """        // MADO_COCKPIT_M1_9_DOT_READY
+        if (
+          (process.env.MADO_DETERMINISTIC_CHAT !== '1' &&
+            !this.config.intelligenceKey) ||
+          !this.config.apiKey ||
+          !this.config.model
+        )
+          throw new Error('Intelligence and model configuration are required.');
+"""
+            text = self._replace_once(
+                text,
+                old,
+                new,
+                "DotAgent deterministic readiness",
+            )
+        if text != original:
+            path.write_text(
+                text,
+                encoding="utf-8",
+            )
+            return True
+        return False
 
     def _patch_platform(self) -> bool:
         path = (
