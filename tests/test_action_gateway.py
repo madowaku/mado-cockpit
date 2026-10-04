@@ -14,6 +14,10 @@ from mado_cockpit.action_gateway import (
     evaluate_action_policy,
     mado_internal_action_policy,
 )
+from mado_cockpit.control_lease import (
+    ControlLeaseManager,
+    ControlScope,
+)
 from mado_cockpit.models import Project
 from mado_cockpit.store import CockpitStore
 
@@ -822,3 +826,217 @@ def test_compare_shadow_decision_reports_same():
         )
         == "same"
     )
+
+
+
+def test_active_human_control_fences_automation_even_when_policy_allows(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    leases = ControlLeaseManager(
+        store
+    )
+    scope = ControlScope(
+        "browser",
+        "session-1",
+    )
+    lease = leases.acquire(
+        scope,
+        holder="human:owner",
+        ttl_seconds=120,
+        reason="Interactive takeover.",
+    )
+    gateway = ActionPolicyGateway(
+        store,
+        control_leases=leases,
+    )
+    candidate = _chat_candidate(
+        control_scope=scope,
+    )
+    called = False
+
+    def dispatch(current):
+        nonlocal called
+        called = True
+
+    with pytest.raises(
+        ActionPolicyRefused,
+        match="Human control is active",
+    ):
+        gateway.execute(
+            candidate,
+            policy=_allow_all_policy(),
+            dispatch=dispatch,
+        )
+
+    assert called is False
+    receipt = gateway.list()[0]
+    assert (
+        receipt["decision"]["source"]
+        == "human_control_fenced"
+    )
+    assert (
+        receipt["control_lease"]["id"]
+        == lease["id"]
+    )
+    assert (
+        receipt["dispatch_status"]
+        == "not_dispatched"
+    )
+
+
+def test_control_lease_holder_person_can_act_under_live_policy(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    leases = ControlLeaseManager(
+        store
+    )
+    scope = ControlScope(
+        "computer",
+        "computer-1",
+    )
+    lease = leases.acquire(
+        scope,
+        holder="human:owner",
+        ttl_seconds=120,
+    )
+    gateway = ActionPolicyGateway(
+        store,
+        control_leases=leases,
+    )
+    candidate = _candidate(
+        actor="human:owner",
+        initiator=ActionInitiator(
+            kind="person",
+            source="cockpit-ui",
+            context_id="takeover-1",
+        ),
+        control_scope=scope,
+    )
+
+    result = gateway.execute(
+        candidate,
+        policy=_allow_all_policy(),
+        dispatch=lambda current: "human-drove",
+    )
+
+    assert result == "human-drove"
+    receipt = gateway.list()[0]
+    assert (
+        receipt["dispatch_status"]
+        == "dispatched"
+    )
+    assert (
+        receipt["control_lease"]["id"]
+        == lease["id"]
+    )
+
+
+def test_different_person_cannot_act_under_someone_elses_control_lease(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    leases = ControlLeaseManager(
+        store
+    )
+    scope = ControlScope(
+        "computer",
+        "computer-1",
+    )
+    leases.acquire(
+        scope,
+        holder="human:owner",
+        ttl_seconds=120,
+    )
+    gateway = ActionPolicyGateway(
+        store,
+        control_leases=leases,
+    )
+    candidate = _candidate(
+        actor="human:other",
+        initiator=ActionInitiator(
+            kind="person",
+            source="cockpit-ui",
+            context_id="takeover-2",
+        ),
+        control_scope=scope,
+    )
+
+    with pytest.raises(
+        ActionPolicyRefused,
+        match="Human control is active",
+    ):
+        gateway.execute(
+            candidate,
+            policy=_allow_all_policy(),
+            dispatch=lambda current: None,
+        )
+
+    receipt = gateway.list()[0]
+    assert (
+        receipt["decision"]["source"]
+        == "human_control_fenced"
+    )
+
+
+def test_release_removes_automation_fence(
+    tmp_path,
+):
+    store = _store(tmp_path)
+    leases = ControlLeaseManager(
+        store
+    )
+    scope = ControlScope(
+        "browser",
+        "session-1",
+    )
+    lease = leases.acquire(
+        scope,
+        holder="human:owner",
+        ttl_seconds=120,
+    )
+    leases.release(
+        lease["id"],
+        holder="human:owner",
+    )
+    gateway = ActionPolicyGateway(
+        store,
+        control_leases=leases,
+    )
+
+    result = gateway.execute(
+        _chat_candidate(
+            control_scope=scope,
+        ),
+        policy=_allow_all_policy(),
+        dispatch=lambda current: "automation-resumed",
+    )
+
+    assert result == "automation-resumed"
+    receipt = gateway.list()[0]
+    assert (
+        receipt["control_lease"]
+        is None
+    )
+
+
+def test_control_scope_changes_equivalence_identity():
+    first = _chat_candidate(
+        control_scope=ControlScope(
+            "browser",
+            "session-1",
+        )
+    )
+    second = _chat_candidate(
+        control_scope=ControlScope(
+            "browser",
+            "session-2",
+        )
+    )
+
+    assert (
+        first.equivalence_digest
+        != second.equivalence_digest
+    )
+    assert first.digest != second.digest
