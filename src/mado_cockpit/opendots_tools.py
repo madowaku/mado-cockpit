@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 from .action_gateway import (
     ActionCandidate,
+    ActionInitiator,
     ActionPolicy,
     ActionPolicyGateway,
     ActionPolicyRefused,
@@ -167,6 +168,7 @@ class OpenDotsToolSurface:
         handoffs: Any | None = None,
         action_gateway: Any | None = None,
         action_policy: ActionPolicy | None = None,
+        shadow_action_policy: ActionPolicy | None = None,
     ) -> None:
         self.store = store
         self.runtime_adapter = (
@@ -183,6 +185,9 @@ class OpenDotsToolSurface:
         self.action_policy = (
             action_policy
             or mado_internal_action_policy()
+        )
+        self.shadow_action_policy = (
+            shadow_action_policy
         )
 
     def handle(
@@ -484,6 +489,38 @@ class OpenDotsToolSurface:
         approval_bound: bool = False,
     ) -> dict[str, Any]:
         context = call["context"]
+        dot_id = str(
+            context["dot_id"]
+        )
+        thread_id = context.get(
+            "thread_id"
+        )
+        space_id = context.get(
+            "space_id"
+        )
+        is_chatgpt = (
+            dot_id == "chatgpt-mcp"
+        )
+        initiator = ActionInitiator(
+            kind="chat",
+            source=(
+                "chatgpt-mcp"
+                if is_chatgpt
+                else f"opendots:{dot_id}"
+            ),
+            context_id=(
+                str(thread_id)
+                if thread_id
+                else (
+                    str(space_id)
+                    if (
+                        space_id
+                        and not is_chatgpt
+                    )
+                    else None
+                )
+            ),
+        )
         candidate = ActionCandidate(
             action=tool_name,
             effect="write",
@@ -493,8 +530,9 @@ class OpenDotsToolSurface:
                 action_arguments
             ),
             actor=(
-                f"dot:{context['dot_id']}"
+                f"dot:{dot_id}"
             ),
+            initiator=initiator,
         )
         approved_digest = (
             candidate.digest
@@ -504,6 +542,9 @@ class OpenDotsToolSurface:
         return self.action_gateway.execute(
             candidate,
             policy=self.action_policy,
+            shadow_policy=(
+                self.shadow_action_policy
+            ),
             revalidate=revalidate,
             approved_digest=(
                 approved_digest
