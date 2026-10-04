@@ -114,8 +114,10 @@ function gateFromMission(result: Record<string, unknown>) {
     result.data && typeof result.data === 'object' && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
       : undefined;
+  if (!data)
+    throw new Error('MCC-M1.9 mission result did not contain data.');
   const gate =
-    data?.human_gate &&
+    data.human_gate &&
     typeof data.human_gate === 'object' &&
     !Array.isArray(data.human_gate)
       ? (data.human_gate as Record<string, unknown>)
