@@ -84,3 +84,17 @@ def test_m19_lock_pins_platform_and_app():
         ]
         == "fc9bae5454b509ce325a2e76a9ea1308e7347cdd"
     )
+
+
+def test_m19_dot_agent_readiness_is_env_guarded():
+    source = (
+        ROOT
+        / "src"
+        / "mado_cockpit"
+        / "opendots_browser_chat.py"
+    ).read_text(encoding="utf-8")
+
+    assert "MADO_COCKPIT_M1_9_DOT_READY" in source
+    assert "MADO_DETERMINISTIC_CHAT !== '1'" in source
+    assert "!this.config.apiKey" in source
+    assert "!this.config.model" in source
