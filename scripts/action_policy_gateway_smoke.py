@@ -20,6 +20,9 @@ from mado_cockpit.store import (
 )
 
 
+SMOKE_VERSION = "MCC-M2.2"
+
+
 def prepare(root: Path) -> dict[str, str]:
     root.mkdir(
         parents=True,
@@ -308,7 +311,7 @@ async def smoke(
         "schema": (
             "mado.action-policy-http-smoke.v1"
         ),
-        "version": "MCC-M2.2",
+        "version": SMOKE_VERSION,
         "ok": True,
         "url": url,
         "operator_id": operator_id,
