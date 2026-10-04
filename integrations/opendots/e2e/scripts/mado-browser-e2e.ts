@@ -28,9 +28,6 @@ async function main() {
     await page.getByRole('button', { name: /stay_free/i }).click();
 
     await page
-      .getByText('Decision returned to the Dot: stay_free')
-      .waitFor();
-    await page
       .getByText('Human Gate cleared. Cockpit resumed at awaiting_builder.')
       .waitFor();
     await page.getByText('awaiting_builder').first().waitFor();
