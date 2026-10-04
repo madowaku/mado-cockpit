@@ -6,6 +6,10 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Literal, Mapping, TypeVar
 from uuid import uuid4
 
+from .control_lease import (
+    ControlLeaseManager,
+    ControlScope,
+)
 from .models import Event, utc_now
 from .store import CockpitStore
 
@@ -27,6 +31,7 @@ DecisionSource = Literal[
     "revalidation_error",
     "approval_changed",
     "equivalent_fenced",
+    "human_control_fenced",
 ]
 ShadowDelta = Literal[
     "same",
@@ -137,6 +142,7 @@ class ActionCandidate:
     initiator: ActionInitiator = field(
         default_factory=ActionInitiator
     )
+    control_scope: ControlScope | None = None
     capability: str | None = None
     mission_id: str | None = None
 
@@ -167,6 +173,16 @@ class ActionCandidate:
             raise RuntimeError(
                 "Action initiator must be ActionInitiator"
             )
+        if (
+            self.control_scope is not None
+            and not isinstance(
+                self.control_scope,
+                ControlScope,
+            )
+        ):
+            raise RuntimeError(
+                "Action control_scope must be ControlScope"
+            )
 
     @property
     def arguments_digest(self) -> str:
@@ -190,6 +206,11 @@ class ActionCandidate:
                     self.arguments
                 ),
                 "actor": self.actor,
+                "control_scope": (
+                    self.control_scope.to_dict()
+                    if self.control_scope is not None
+                    else None
+                ),
                 "capability": (
                     self.capability
                 ),
@@ -208,6 +229,11 @@ class ActionCandidate:
                 ),
                 "initiator": (
                     self.initiator.to_dict()
+                ),
+                "control_scope": (
+                    self.control_scope.to_dict()
+                    if self.control_scope is not None
+                    else None
                 ),
             }
         )
@@ -467,11 +493,17 @@ class ActionPolicyGateway:
     def __init__(
         self,
         store: CockpitStore,
+        *,
+        control_leases: ControlLeaseManager | None = None,
     ) -> None:
         self.store = store
         self.receipts_dir = (
             store.base
             / "action_decisions"
+        )
+        self.control_leases = (
+            control_leases
+            or ControlLeaseManager(store)
         )
 
     def execute(
@@ -538,6 +570,7 @@ class ActionPolicyGateway:
                 ),
                 shadow_decision=None,
                 equivalent_to_receipt_id=None,
+                control_lease=None,
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -568,6 +601,55 @@ class ActionPolicyGateway:
                 ),
                 shadow_decision=None,
                 equivalent_to_receipt_id=None,
+            )
+            raise ActionPolicyRefused(
+                decision.reason,
+                receipt_id=receipt["id"],
+            )
+
+        active_control = (
+            self.control_leases.current(
+                current.control_scope
+            )
+            if current.control_scope
+            is not None
+            else None
+        )
+        if (
+            active_control is not None
+            and not (
+                current.initiator.kind
+                == "person"
+                and current.actor
+                == active_control[
+                    "holder"
+                ]
+            )
+        ):
+            decision = ActionDecision(
+                allowed=False,
+                source=(
+                    "human_control_fenced"
+                ),
+                rule_id=None,
+                reason=(
+                    "Human control is active for "
+                    "this resource under lease "
+                    f"{active_control['id']}."
+                ),
+            )
+            receipt = self._record_decision(
+                candidate=candidate,
+                current=current,
+                decision=decision,
+                approved_digest=(
+                    approved_digest
+                ),
+                shadow_decision=None,
+                equivalent_to_receipt_id=None,
+                control_lease=(
+                    active_control
+                ),
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -616,6 +698,7 @@ class ActionPolicyGateway:
                         equivalent["id"]
                     )
                 ),
+                control_lease=None,
             )
             raise ActionPolicyRefused(
                 decision.reason,
@@ -639,6 +722,7 @@ class ActionPolicyGateway:
                 shadow_decision
             ),
             equivalent_to_receipt_id=None,
+            control_lease=None,
         )
 
         if not decision.allowed:
@@ -760,6 +844,8 @@ class ActionPolicyGateway:
         | None,
         equivalent_to_receipt_id: str
         | None,
+        control_lease: Mapping[str, Any]
+        | None,
     ) -> dict[str, Any]:
         receipt_id = (
             "actdec_"
@@ -804,6 +890,27 @@ class ActionPolicyGateway:
             ),
             "initiator": (
                 authoritative.initiator.to_dict()
+            ),
+            "control_scope": (
+                authoritative.control_scope.to_dict()
+                if authoritative.control_scope
+                is not None
+                else None
+            ),
+            "control_lease": (
+                {
+                    "id": control_lease["id"],
+                    "holder": control_lease[
+                        "holder"
+                    ],
+                    "expires_at": (
+                        control_lease[
+                            "expires_at"
+                        ]
+                    ),
+                }
+                if control_lease is not None
+                else None
             ),
             "capability": (
                 authoritative.capability
