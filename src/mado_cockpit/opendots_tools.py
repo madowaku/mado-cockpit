@@ -435,7 +435,12 @@ class OpenDotsToolSurface:
                         else {}
                     ),
                 },
-                revalidate=revalidate_gate,
+                revalidate=(
+                    revalidate_gate
+                    if requested_gate_id
+                    is not None
+                    else None
+                ),
                 approval_bound=(
                     requested_gate_id
                     is not None
