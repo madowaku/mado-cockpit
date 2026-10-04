@@ -10,8 +10,25 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 980 } });
   const browserErrors: string[] = [];
+  const requestFailures: string[] = [];
+  const badResponses: string[] = [];
 
   page.on('pageerror', (error) => browserErrors.push(error.message));
+  page.on('requestfailed', (request) =>
+    requestFailures.push(
+      `${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'failed'}`,
+    ),
+  );
+  page.on('response', (response) => {
+    if (
+      response.status() >= 400 &&
+      (response.url().includes('/api/copilotkit') ||
+        response.url().includes('/api/conversations'))
+    )
+      badResponses.push(
+        `${response.status()} ${response.request().method()} ${response.url()}`,
+      );
+  });
 
   try {
     await page.goto(baseUrl, { waitUntil: 'networkidle' });
@@ -67,6 +84,37 @@ async function main() {
         2,
       ),
     );
+  } catch (cause) {
+    await page
+      .screenshot({
+        path: `${evidenceDir}/99-normal-chat-failure.png`,
+        fullPage: true,
+      })
+      .catch(() => undefined);
+    const bodyText = await page
+      .locator('body')
+      .innerText()
+      .catch(() => '<body unavailable>');
+    const alerts = await page
+      .getByRole('alert')
+      .allTextContents()
+      .catch(() => []);
+    console.error(
+      JSON.stringify(
+        {
+          schema: 'mado.opendots.browser-chat-diagnostic.v1',
+          operator_id: operatorId,
+          browser_errors: browserErrors,
+          request_failures: requestFailures,
+          bad_responses: badResponses,
+          alerts,
+          body_text: bodyText.slice(0, 12000),
+        },
+        null,
+        2,
+      ),
+    );
+    throw cause;
   } finally {
     await browser.close();
   }
