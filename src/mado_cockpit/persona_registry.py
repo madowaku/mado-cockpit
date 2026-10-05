@@ -158,6 +158,8 @@ def _first_summary(lines: list[str]) -> str | None:
         stripped = line.strip()
         if not stripped:
             continue
+        if stripped.startswith("### "):
+            return _strip_markdown(stripped[4:])[:500]
         if stripped.startswith("#"):
             continue
         if stripped.startswith(("- ", "* ")):
