@@ -4,9 +4,9 @@ MCC-M2.5 introduces a MADO-native intake boundary for external agent personas.
 
 The first supported corpus is:
 
-\`\`\`text
+```text
 https://github.com/msitarzewski/agency-agents
-\`\`\`
+```
 
 The milestone deliberately does **not** install Agency Agents directly into Codex, Claude, Gemini, or another execution host.
 
@@ -14,7 +14,7 @@ Instead, it treats Agency Agents as an external persona/procedure corpus that mu
 
 ## Design law
 
-\`\`\`text
+```text
 external persona text
       ↓
 pinned source revision
@@ -28,7 +28,7 @@ experimental trust
 human review
       ↓
 reviewed / trusted / rejected
-\`\`\`
+```
 
 A persona is not a capability.
 
@@ -42,20 +42,20 @@ M2.5 does not clone repositories or perform network access.
 
 The operator supplies a local, already checked-out source tree plus a pinned source revision:
 
-\`\`\`bash
+```bash
 python -m mado_cockpit.persona_registry \
   --root . \
   intake \
   --source-root C:\Dev\External\agency-agents \
   --revision <git-commit-sha>
-\`\`\`
+```
 
 The default source identity is:
 
-\`\`\`text
+```text
 provider    agency-agents
 repository  https://github.com/msitarzewski/agency-agents
-\`\`\`
+```
 
 The revision is required.
 
@@ -67,13 +67,13 @@ The upstream repository contains both agent definitions and ordinary Markdown do
 
 M2.5 treats a Markdown file as an Agency Agents persona only when its frontmatter contains all of:
 
-\`\`\`text
+```text
 name
 description
 color
 emoji
 vibe
-\`\`\`
+```
 
 Ordinary README/runbook/strategy Markdown is skipped.
 
@@ -83,9 +83,9 @@ The current parser supports the scalar frontmatter shape used by Agency Agents a
 
 Each imported persona becomes:
 
-\`\`\`text
+```text
 mado.external-persona.v1
-\`\`\`
+```
 
 with:
 
@@ -110,9 +110,9 @@ The full persona text is preserved as a source snapshot rather than copied into 
 
 Persona identity is derived from:
 
-\`\`\`text
+```text
 provider + repository + source path
-\`\`\`
+```
 
 not from source content.
 
@@ -120,53 +120,53 @@ Therefore an upstream edit preserves the same logical persona ID while producing
 
 This allows MADO to distinguish:
 
-\`\`\`text
+```text
 same persona, new source
-\`\`\`
+```
 
 from:
 
-\`\`\`text
+```text
 different persona
-\`\`\`
+```
 
 ## Trust states
 
 M2.5 defines:
 
-\`\`\`text
+```text
 experimental
 reviewed
 trusted
 rejected
-\`\`\`
+```
 
 Every new external persona begins as:
 
-\`\`\`text
+```text
 experimental
-\`\`\`
+```
 
 Trust changes are available only through the local operator CLI in this milestone.
 
 They require an actor in the form:
 
-\`\`\`text
+```text
 human:<id>
-\`\`\`
+```
 
-Promotion to \`trusted\` additionally requires a review note.
+Promotion to `trusted` additionally requires a review note.
 
 Example:
 
-\`\`\`bash
+```bash
 python -m mado_cockpit.persona_registry \
   --root . \
   trust extp_... \
   --state trusted \
   --actor human:owner \
   --note "Reviewed exact source digest and accepted constraints."
-\`\`\`
+```
 
 M2.5 does not expose trust promotion as a ChatGPT MCP tool or an agent tool.
 
@@ -178,7 +178,7 @@ A reviewed/trusted decision is bound to the exact source digest that was reviewe
 
 If the upstream persona bytes change and are intaken again:
 
-\`\`\`text
+```text
 trusted persona
       ↓ source SHA changes
 same stable persona ID
@@ -186,13 +186,13 @@ same stable persona ID
 trust = experimental
       ↓
 human re-review required
-\`\`\`
+```
 
 The new record keeps:
 
-\`\`\`text
+```text
 previous_source_sha256
-\`\`\`
+```
 
 so the trust reset is inspectable.
 
@@ -202,21 +202,21 @@ If only the pinned repository revision changes while the persona bytes remain id
 
 Before re-intake, an operator can compare the registered corpus against a local upstream checkout:
 
-\`\`\`bash
+```bash
 python -m mado_cockpit.persona_registry \
   --root . \
   reconcile \
   --source-root C:\Dev\External\agency-agents
-\`\`\`
+```
 
 The report classifies entries as:
 
-\`\`\`text
+```text
 current       registered bytes still match
 changed       same registered path, different bytes
 removed       registered path no longer exists
 unregistered  valid Agency Agents persona not yet registered
-\`\`\`
+```
 
 Reconcile is observational.
 
@@ -226,18 +226,18 @@ It does not silently update records or trust.
 
 A whole upstream checkout can be scanned, or intake can be narrowed by division:
 
-\`\`\`bash
+```bash
 python -m mado_cockpit.persona_registry \
   --root . \
   intake \
   --source-root C:\Dev\External\agency-agents \
   --revision <sha> \
   --division game-development
-\`\`\`
+```
 
 or by agent slug/display name:
 
-\`\`\`bash
+```bash
 python -m mado_cockpit.persona_registry \
   --root . \
   intake \
@@ -245,7 +245,7 @@ python -m mado_cockpit.persona_registry \
   --revision <sha> \
   --agent godot-gameplay-scripter \
   --agent testing-evidence-collector
-\`\`\`
+```
 
 A requested agent that cannot be found fails the intake instead of silently producing a partial requested set.
 
@@ -253,7 +253,7 @@ A requested agent that cannot be found fails the intake instead of silently prod
 
 M2.5 stores:
 
-\`\`\`text
+```text
 .mado/cockpit/personas/
 ├─ registry.json
 ├─ records/
@@ -265,9 +265,9 @@ M2.5 stores:
 │  └─ extp_<id>.jsonl
 └─ intakes/
    └─ pint_<id>.json
-\`\`\`
+```
 
-\`registry.json\` is the compact discovery index.
+`registry.json` is the compact discovery index.
 
 The per-persona record is authoritative for normalized metadata and trust.
 
@@ -281,11 +281,11 @@ The intake receipt records the pinned repository revision and the set of importe
 
 M2.5 records:
 
-\`\`\`text
+```text
 persona.intake.recorded
 persona.intake.completed
 persona.trust.changed
-\`\`\`
+```
 
 Events contain persona/source identifiers and trust state, not the entire external prompt body.
 
@@ -297,15 +297,15 @@ M2.5 does not convert those prose claims into capability bindings.
 
 Normalized records explicitly state:
 
-\`\`\`text
+```text
 capability_assumptions.status = unverified
-\`\`\`
+```
 
 Future routing must still pass through MADO's existing capability and policy contracts.
 
 This means:
 
-\`\`\`text
+```text
 persona says "use browser"
 ≠ browser capability granted
 
@@ -314,7 +314,7 @@ persona says "remember"
 
 persona says "deploy"
 ≠ production permission granted
-\`\`\`
+```
 
 ## Execution boundary
 
@@ -331,7 +331,7 @@ It does not yet:
 
 Those belong to later milestones.
 
-A safe next stage can consume only \`reviewed\` or \`trusted\` records and compile their persona instructions into a Worker context while preserving Capability Pager, Action Policy Gateway, Human Question Gate, and Human Control Lease authority.
+A safe next stage can consume only `reviewed` or `trusted` records and compile their persona instructions into a Worker context while preserving Capability Pager, Action Policy Gateway, Human Question Gate, and Human Control Lease authority.
 
 ## Evidence fixture
 
@@ -339,24 +339,24 @@ The dedicated smoke:
 
 1. creates two production-shaped Agency Agents Markdown fixtures;
 2. imports both;
-3. promotes the Godot persona to \`trusted\`;
-4. verifies both reconcile as \`current\`;
+3. promotes the Godot persona to `trusted`;
+4. verifies both reconcile as `current`;
 5. mutates the upstream Godot source;
-6. verifies reconcile reports \`changed\`;
+6. verifies reconcile reports `changed`;
 7. re-intakes the changed persona at a new revision;
 8. verifies the stable persona ID is preserved;
-9. verifies trust resets to \`experimental\`;
+9. verifies trust resets to `experimental`;
 10. verifies the prior trusted source SHA is retained.
 
 CI uploads the resulting persona registry, snapshots, review log, intake receipts, focused test output, and smoke result as:
 
-\`\`\`text
+```text
 external-persona-registry-evidence
-\`\`\`
+```
 
 ## MCC-M2.5 acceptance target
 
-\`\`\`text
+```text
 Agency Agents scalar-frontmatter detection
 exact source snapshot
 pinned revision provenance
@@ -374,4 +374,4 @@ Event Spine evidence
 focused tests
 real filesystem smoke
 full Cockpit regression CI
-\`\`\`
+```
