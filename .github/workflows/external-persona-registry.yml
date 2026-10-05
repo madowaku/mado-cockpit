@@ -1,0 +1,66 @@
+name: External Persona Registry
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/external-persona-registry.yml"
+      - "src/mado_cockpit/persona_registry.py"
+      - "scripts/agency_agents_intake_smoke.py"
+      - "tests/test_persona_registry.py"
+      - "docs/MCC-M2.5_AGENCY_AGENTS_INTAKE.md"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/external-persona-registry.yml"
+      - "src/mado_cockpit/persona_registry.py"
+      - "scripts/agency_agents_intake_smoke.py"
+      - "tests/test_persona_registry.py"
+      - "docs/MCC-M2.5_AGENCY_AGENTS_INTAKE.md"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  external-persona-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run focused M2.5 tests
+        run: |
+          set -o pipefail
+          pytest -q tests/test_persona_registry.py | tee /tmp/m2.5-focused-tests.txt
+
+      - name: Run Agency Agents intake smoke
+        run: |
+          set -o pipefail
+          mkdir -p .mado/m2.5
+          python scripts/agency_agents_intake_smoke.py \
+            --root /tmp/mado-m2.5-fixture \
+            | tee .mado/m2.5/agency-agents-smoke.json
+          cp -R \
+            /tmp/mado-m2.5-fixture/.mado/cockpit/personas \
+            .mado/m2.5/personas
+
+      - name: Upload M2.5 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-persona-registry-evidence
+          path: |
+            .mado/m2.5/
+            /tmp/m2.5-focused-tests.txt
+          if-no-files-found: error
