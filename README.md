@@ -326,6 +326,45 @@ Run `mado-cockpit capability agent-reach probe` to verify all supported routes, 
 
 See `docs/MCC-M1.8_AGENT_REACH_LIVE_PROBE.md`.
 
+
+### MCC-M2.5 Agency Agents Intake / External Persona Registry
+
+External agent personas can now enter Cockpit through a provenance and trust boundary instead of being installed directly into an execution host.
+
+\`\`\`text
+local Agency Agents checkout
+      ↓ pinned revision
+exact SHA-256 source snapshot
+      ↓
+External Persona Registry
+      ↓ experimental
+human review
+      ↓
+reviewed / trusted / rejected
+\`\`\`
+
+A persona remains separate from runtime capability authority. Tool, memory, browser, deployment, and other powers mentioned in persona prose are recorded as unverified assumptions and must still pass the existing Capability Pager and policy layers.
+
+The registry preserves stable persona identity across upstream edits, but trust is bound to the exact reviewed source digest. Re-intaking changed bytes automatically resets prior trust to \`experimental\`. \`reconcile\` reports \`current\`, \`changed\`, \`removed\`, and \`unregistered\` entries without mutating the registry.
+
+Example:
+
+\`\`\`bash
+python -m mado_cockpit.persona_registry \
+  --root . \
+  intake \
+  --source-root C:\Dev\External\agency-agents \
+  --revision <git-commit-sha> \
+  --division game-development
+
+python -m mado_cockpit.persona_registry \
+  --root . \
+  reconcile \
+  --source-root C:\Dev\External\agency-agents
+\`\`\`
+
+See \`docs/MCC-M2.5_AGENCY_AGENTS_INTAKE.md\`.
+
 ## Quick start
 
 ```bash
