@@ -48,6 +48,9 @@ jobs:
           set -o pipefail
           pytest -q tests/test_artifact_workspaces.py | tee /tmp/artifact-workspace-tests.txt
 
+      - name: Run full Cockpit regression suite
+        run: pytest -q
+
       - name: Run offline artifact workspace smoke
         run: |
           set -o pipefail
