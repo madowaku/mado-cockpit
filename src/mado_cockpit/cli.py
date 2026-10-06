@@ -9,6 +9,11 @@ from .agent_reach import (
     AgentReachDoctorClient,
     sync_agent_reach_capabilities,
 )
+from .artifact_workspaces import ArtifactWorkspaceManager
+from .cloudflare_artifacts import (
+    CloudflareArtifactsClient,
+    CloudflareArtifactsConfig,
+)
 from .agent_reach_probe import (
     ExternalWebEvidenceStore,
     run_and_record_live_probes,
@@ -134,6 +139,124 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
     )
+
+    artifact = sub.add_parser(
+        "artifact",
+        help="Versioned artifact workspace operations",
+    )
+    artifact_sub = artifact.add_subparsers(
+        dest="artifact_command",
+        required=True,
+    )
+
+    artifact_create = artifact_sub.add_parser(
+        "create",
+        help="Create a Cloudflare Artifacts repository workspace",
+    )
+    artifact_create.add_argument("repo_name")
+    artifact_create.add_argument(
+        "--kind",
+        required=True,
+        choices=["baseline", "mission", "task", "session", "experiment"],
+    )
+    artifact_create.add_argument("--description")
+    artifact_create.add_argument("--default-branch", default="main")
+    artifact_create.add_argument("--read-only", action="store_true")
+    artifact_create.add_argument("--mission")
+    artifact_create.add_argument("--worker")
+    artifact_create.add_argument("--task")
+    artifact_create.add_argument("--session")
+    _add_artifact_remote_args(artifact_create)
+
+    artifact_import = artifact_sub.add_parser(
+        "import",
+        help="Import an HTTPS Git remote as a baseline workspace",
+    )
+    artifact_import.add_argument("repo_name")
+    artifact_import.add_argument("source_url")
+    artifact_import.add_argument("--branch")
+    artifact_import.add_argument("--depth", type=int)
+    artifact_import.add_argument("--read-only", action="store_true")
+    artifact_import.add_argument("--description")
+    artifact_import.add_argument("--mission")
+    _add_artifact_remote_args(artifact_import)
+
+    artifact_fork = artifact_sub.add_parser(
+        "fork",
+        help="Fork an artifact workspace for a mission/task/session",
+    )
+    artifact_fork.add_argument("parent_workspace_id")
+    artifact_fork.add_argument("repo_name")
+    artifact_fork.add_argument(
+        "--kind",
+        required=True,
+        choices=["baseline", "mission", "task", "session", "experiment"],
+    )
+    artifact_fork.add_argument("--description")
+    artifact_fork.add_argument("--read-only", action="store_true")
+    artifact_fork.add_argument(
+        "--all-branches",
+        action="store_true",
+        help="Fork more than the default branch",
+    )
+    artifact_fork.add_argument("--mission")
+    artifact_fork.add_argument("--worker")
+    artifact_fork.add_argument("--task")
+    artifact_fork.add_argument("--session")
+    _add_artifact_remote_args(artifact_fork)
+
+    artifact_sub.add_parser(
+        "list",
+        help="List locally registered artifact workspaces",
+    )
+
+    artifact_inspect = artifact_sub.add_parser(
+        "inspect",
+        help="Inspect one locally registered artifact workspace",
+    )
+    artifact_inspect.add_argument("workspace_id")
+
+    artifact_lease = artifact_sub.add_parser(
+        "lease",
+        help="Mint a short-lived repo-scoped Git credential",
+    )
+    artifact_lease.add_argument("workspace_id")
+    artifact_lease.add_argument(
+        "--scope",
+        choices=["read", "write"],
+        default="write",
+    )
+    artifact_lease.add_argument("--ttl", type=int, default=3600)
+    artifact_lease.add_argument(
+        "--reveal-secret",
+        action="store_true",
+        help="Explicitly print the one-time plaintext credential",
+    )
+    _add_artifact_remote_args(artifact_lease)
+
+    artifact_revoke = artifact_sub.add_parser(
+        "revoke",
+        help="Revoke a recorded artifact lease",
+    )
+    artifact_revoke.add_argument("lease_id")
+    _add_artifact_remote_args(artifact_revoke)
+
+    artifact_leases = artifact_sub.add_parser(
+        "leases",
+        help="List locally recorded artifact leases",
+    )
+    artifact_leases.add_argument("--workspace")
+
+    artifact_delete = artifact_sub.add_parser(
+        "delete",
+        help="Delete a remote artifact workspace after exact confirmation",
+    )
+    artifact_delete.add_argument("workspace_id")
+    artifact_delete.add_argument(
+        "--confirm-repo",
+        required=True,
+    )
+    _add_artifact_remote_args(artifact_delete)
 
     session = sub.add_parser(
         "session",
@@ -787,6 +910,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _add_artifact_remote_args(
+    parser: argparse.ArgumentParser,
+) -> None:
+    parser.add_argument(
+        "--account-id",
+        default=os.environ.get("CLOUDFLARE_ACCOUNT_ID"),
+    )
+    parser.add_argument(
+        "--namespace",
+        default=os.environ.get(
+            "CLOUDFLARE_ARTIFACTS_NAMESPACE",
+            "default",
+        ),
+    )
+
+
 def _add_gate_candidate_args(
     parser: argparse.ArgumentParser,
 ) -> None:
@@ -1071,6 +1210,33 @@ def _capability_policy(
     )
 
 
+def _artifact_manager(
+    store: CockpitStore,
+    args: argparse.Namespace,
+) -> ArtifactWorkspaceManager:
+    account_id = getattr(args, "account_id", None)
+    namespace = getattr(args, "namespace", "default")
+    api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
+    if not account_id:
+        raise RuntimeError(
+            "--account-id or CLOUDFLARE_ACCOUNT_ID is required"
+        )
+    if not api_token:
+        raise RuntimeError(
+            "CLOUDFLARE_API_TOKEN is required for remote artifact operations"
+        )
+    return ArtifactWorkspaceManager(
+        store,
+        CloudflareArtifactsClient(
+            CloudflareArtifactsConfig(
+                account_id=account_id,
+                api_token=api_token,
+                namespace=namespace,
+            )
+        ),
+    )
+
+
 def _session_manager(
     store: CockpitStore,
     *,
@@ -1201,6 +1367,113 @@ def main(
                         args.delete_branch
                     ),
                     force=args.force,
+                )
+            )
+            return 0
+
+    if args.command == "artifact":
+        if args.artifact_command == "list":
+            _print_json(ArtifactWorkspaceManager(store).list())
+            return 0
+
+        if args.artifact_command == "inspect":
+            _print_json(
+                ArtifactWorkspaceManager(store).get(
+                    args.workspace_id
+                )
+            )
+            return 0
+
+        if args.artifact_command == "leases":
+            _print_json(
+                ArtifactWorkspaceManager(store).list_leases(
+                    workspace_id=args.workspace
+                )
+            )
+            return 0
+
+        manager = _artifact_manager(store, args)
+
+        if args.artifact_command == "create":
+            _print_json(
+                manager.create(
+                    args.repo_name,
+                    kind=args.kind,
+                    description=args.description,
+                    default_branch=args.default_branch,
+                    read_only=args.read_only,
+                    mission_id=args.mission,
+                    worker_id=args.worker,
+                    task_id=args.task,
+                    session_id=args.session,
+                )
+            )
+            return 0
+
+        if args.artifact_command == "import":
+            _print_json(
+                manager.import_baseline(
+                    args.repo_name,
+                    args.source_url,
+                    branch=args.branch,
+                    depth=args.depth,
+                    read_only=args.read_only,
+                    description=args.description,
+                    mission_id=args.mission,
+                )
+            )
+            return 0
+
+        if args.artifact_command == "fork":
+            _print_json(
+                manager.fork(
+                    args.parent_workspace_id,
+                    args.repo_name,
+                    kind=args.kind,
+                    description=args.description,
+                    read_only=args.read_only,
+                    default_branch_only=(
+                        not args.all_branches
+                    ),
+                    mission_id=args.mission,
+                    worker_id=args.worker,
+                    task_id=args.task,
+                    session_id=args.session,
+                )
+            )
+            return 0
+
+        if args.artifact_command == "lease":
+            if not args.reveal_secret:
+                raise RuntimeError(
+                    "Artifact lease creation returns a one-time secret. "
+                    "Re-run with --reveal-secret only when the caller "
+                    "is ready to consume it."
+                )
+            credential = manager.issue_lease(
+                args.workspace_id,
+                scope=args.scope,
+                ttl=args.ttl,
+            )
+            payload = credential.public_dict()
+            payload["plaintext"] = credential.plaintext
+            payload["authenticated_remote"] = (
+                credential.authenticated_remote
+            )
+            _print_json(payload)
+            return 0
+
+        if args.artifact_command == "revoke":
+            _print_json(
+                manager.revoke_lease(args.lease_id)
+            )
+            return 0
+
+        if args.artifact_command == "delete":
+            _print_json(
+                manager.delete(
+                    args.workspace_id,
+                    confirm_repo_name=args.confirm_repo,
                 )
             )
             return 0
