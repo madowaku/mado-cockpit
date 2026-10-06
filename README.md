@@ -365,6 +365,53 @@ python -m mado_cockpit.persona_registry \
 
 See `docs/MCC-M2.5_AGENCY_AGENTS_INTAKE.md`.
 
+### MCC-ART-M0.0 / M0.1 Artifact Workspace + Cloudflare Artifacts
+
+Cockpit now has a provider-neutral remote Artifact Workspace contract plus a Cloudflare Artifacts REST adapter.
+
+```text
+GitHub source / release
+        |
+        v
+Artifact baseline
+        |
+        +--> mission fork
+        +--> task fork
+        +--> session fork
+        |
+        v
+short-lived repo lease
+```
+
+Durable state stores uncredentialed repo metadata and revocable lease metadata only. Cloudflare bootstrap tokens, repo-token plaintext, authenticated Git remotes, and the Cloudflare API token are never written into Cockpit state or Event Spine records.
+
+Cloudflare control-plane credentials come from:
+
+```text
+CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ARTIFACTS_NAMESPACE
+```
+
+Import a public GitHub baseline and fork it:
+
+```bash
+mado-cockpit artifact import mado-cockpit-baseline \
+  https://github.com/madowaku/mado-cockpit.git \
+  --branch main \
+  --depth 100
+
+mado-cockpit artifact fork <BASELINE_WORKSPACE_ID> \
+  mission-builder \
+  --kind mission \
+  --mission MCC-DEMO \
+  --worker builder
+```
+
+Local `artifact list`, `artifact inspect`, and `artifact leases` work without Cloudflare credentials. Lease creation requires explicit `--reveal-secret`; deletion requires exact repo-name confirmation and is blocked while recorded leases remain active.
+
+See `docs/MCC-ART-M0.0_M0.1_ARTIFACT_WORKSPACE.md`.
+
 ## Quick start
 
 ```bash

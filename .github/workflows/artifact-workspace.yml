@@ -1,0 +1,68 @@
+name: Artifact Workspace Contract
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/artifact-workspace.yml"
+      - "src/mado_cockpit/artifact_workspaces.py"
+      - "src/mado_cockpit/cloudflare_artifacts.py"
+      - "src/mado_cockpit/cli.py"
+      - "scripts/artifact_workspace_smoke.py"
+      - "tests/test_artifact_workspaces.py"
+      - "docs/MCC-ART-M0.0_M0.1_ARTIFACT_WORKSPACE.md"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/artifact-workspace.yml"
+      - "src/mado_cockpit/artifact_workspaces.py"
+      - "src/mado_cockpit/cloudflare_artifacts.py"
+      - "src/mado_cockpit/cli.py"
+      - "scripts/artifact_workspace_smoke.py"
+      - "tests/test_artifact_workspaces.py"
+      - "docs/MCC-ART-M0.0_M0.1_ARTIFACT_WORKSPACE.md"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run focused artifact workspace tests
+        run: |
+          set -o pipefail
+          pytest -q tests/test_artifact_workspaces.py | tee /tmp/artifact-workspace-tests.txt
+
+      - name: Run offline artifact workspace smoke
+        run: |
+          set -o pipefail
+          mkdir -p .mado/artifact-workspace-ci
+          python scripts/artifact_workspace_smoke.py \
+            --root /tmp/mado-artifact-workspace-fixture \
+            | tee .mado/artifact-workspace-ci/smoke.json
+
+      - name: Upload contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-workspace-contract-evidence
+          path: |
+            .mado/artifact-workspace-ci/
+            /tmp/artifact-workspace-tests.txt
+            /tmp/mado-artifact-workspace-fixture/.mado/cockpit/artifacts/
+          if-no-files-found: error
