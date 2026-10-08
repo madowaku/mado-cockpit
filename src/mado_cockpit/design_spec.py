@@ -417,6 +417,39 @@ class DesignSpecManager:
                         base_revision=current["revision"], source_ref=source_ref)
             return proposal
 
+    def preview(self, mission_id: str, proposal_id: str) -> dict[str, Any]:
+        """Dry-run the proposal without changing the approved specification."""
+        _identifier(proposal_id, "proposal_id")
+        path = self._dir(mission_id) / "proposals" / (proposal_id + ".json")
+        if not path.is_file():
+            raise DesignSpecError("proposal not found")
+        proposal = _read(path)
+        if proposal["mission_id"] != mission_id:
+            raise DesignSpecError("proposal mission mismatch")
+        current = self.show(mission_id)
+        if current["revision"] != proposal["base_revision"]:
+            raise DesignSpecError("stale proposal preview; use a current revision")
+        candidate = apply_operations(
+            current, proposal["operations"],
+            source_ref=proposal["source_ref"],
+            reviewer="pending-human-review", reviewed_at="pending",
+        )
+        digest = _hash(candidate)
+        if digest != proposal["preview_sha256"]:
+            raise DesignSpecError("proposal preview checksum mismatch")
+        fields = ("goal", "audiences", "principles", "constraints",
+                  "screens", "journeys", "decisions", "open_questions")
+        return {
+            "mission_id": mission_id,
+            "proposal_id": proposal_id,
+            "base_revision": current["revision"],
+            "proposed_revision": current["revision"] + 1,
+            "changed_sections": [f for f in fields if current[f] != candidate[f]],
+            "preview_sha256": digest,
+            "candidate": candidate,
+            "advisory_only": True,
+        }
+
     def review(
         self, mission_id: str, proposal_id: str, *,
         decision: str, reviewer: str, human_confirm: bool,
