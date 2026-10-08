@@ -85,6 +85,10 @@ def test_review_gated_promotion_persists_markdown_history_and_evidence(harness):
     store, manager = harness
     proposed = manager.propose("MCC-UI", change())
     assert proposed["status"] == "pending"
+    preview = manager.preview("MCC-UI", proposed["id"])
+    assert preview["advisory_only"] is True
+    assert "screens" in preview["changed_sections"]
+    assert preview["candidate"]["goal"] == "Review missions safely"
     assert manager.show("MCC-UI")["revision"] == 0
     with pytest.raises(DesignSpecError, match="human-confirm"):
         manager.review("MCC-UI", proposed["id"], decision="approve",
@@ -209,6 +213,8 @@ def test_cli_end_to_end(tmp_path, monkeypatch, capsys):
     capsys.readouterr()
     assert main(["design-spec", "propose", "MCC-UI", "--file", str(input_file)]) == 0
     proposal = json.loads(capsys.readouterr().out)
+    assert main(["design-spec", "preview", "MCC-UI", proposal["id"]]) == 0
+    assert json.loads(capsys.readouterr().out)["advisory_only"] is True
     assert main(["design-spec", "review", "MCC-UI", proposal["id"],
                  "--decision", "approve", "--reviewer", "creator",
                  "--human-confirm"]) == 0
