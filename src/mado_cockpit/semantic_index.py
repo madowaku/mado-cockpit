@@ -287,6 +287,7 @@ class SemanticEvidenceIndex:
                 skipped.append(self._relative(path))
 
         previous = self._load_records()
+        vector_space_matches = self._vector_space_matches_backend()
         can_reuse = self._metadata_matches_backend()
         previous_text = [
             record
@@ -296,7 +297,10 @@ class SemanticEvidenceIndex:
         preserved_visual = [
             record
             for record in previous
-            if _record_modality(record) != "text"
+            if (
+                vector_space_matches
+                and _record_modality(record) != "text"
+            )
         ]
 
         previous_by_key = {
@@ -375,6 +379,11 @@ class SemanticEvidenceIndex:
             explicit_paths=explicit_paths,
         )
         previous = self._load_records()
+        if previous and not self._vector_space_matches_backend():
+            raise RuntimeError(
+                "visual sync refuses an incompatible existing vector space; "
+                "rebuild the text index with the target model/dimension first"
+            )
         can_reuse = self._metadata_matches_backend()
 
         preserved = [
@@ -765,7 +774,7 @@ class SemanticEvidenceIndex:
             metadata["last_image_sync"] = now
         return metadata
 
-    def _metadata_matches_backend(self) -> bool:
+    def _vector_space_matches_backend(self) -> bool:
         metadata = self._load_metadata()
         if metadata is None:
             return False
@@ -773,6 +782,14 @@ class SemanticEvidenceIndex:
             metadata.get("schema") == SCHEMA
             and metadata.get("model_id") == self.backend.model_id
             and metadata.get("dimension") == self.backend.dimension
+        )
+
+    def _metadata_matches_backend(self) -> bool:
+        metadata = self._load_metadata()
+        if metadata is None:
+            return False
+        return (
+            self._vector_space_matches_backend()
             and metadata.get("chunk_chars") == self.chunk_chars
             and metadata.get("chunk_overlap") == self.chunk_overlap
         )
