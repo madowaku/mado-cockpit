@@ -890,6 +890,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     for command in ("init", "show", "history", "proposals", "validate"):
         design_sub.add_parser(command).add_argument("mission_id")
+    design_preview = design_sub.add_parser("preview")
+    design_preview.add_argument("mission_id")
+    design_preview.add_argument("proposal_id")
     design_propose = design_sub.add_parser("propose")
     design_propose.add_argument("mission_id")
     design_propose.add_argument("--file", required=True, type=Path)
@@ -1973,6 +1976,8 @@ def main(
             _print_json(manager.proposals(args.mission_id))
         elif args.design_command == "validate":
             _print_json(manager.validate(args.mission_id))
+        elif args.design_command == "preview":
+            _print_json(manager.preview(args.mission_id, args.proposal_id))
         elif args.design_command == "propose":
             change = json.loads(args.file.read_text(encoding="utf-8"))
             _print_json(manager.propose(args.mission_id, change))
