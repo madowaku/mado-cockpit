@@ -42,6 +42,7 @@ mado-cockpit mission create MCC-UI "MADO Cockpit UI"
 mado-cockpit design-spec init MCC-UI
 mado-cockpit design-spec propose MCC-UI --file fixtures/design_spec/mcc-m2.6-cockpit-ui.json
 mado-cockpit design-spec proposals MCC-UI
+mado-cockpit design-spec preview MCC-UI dchg_<the-id-from-propose>
 mado-cockpit design-spec show MCC-UI
 ```
 
