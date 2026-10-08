@@ -373,6 +373,7 @@ Design changes from conversations and agents now enter as **review-gated proposa
 mado-cockpit design-spec init MCC-UI
 mado-cockpit design-spec propose MCC-UI --file fixtures/design_spec/mcc-m2.6-cockpit-ui.json
 mado-cockpit design-spec proposals MCC-UI
+mado-cockpit design-spec preview MCC-UI dchg_<ID>
 mado-cockpit design-spec review MCC-UI dchg_<ID> --decision approve --reviewer human:owner --human-confirm
 mado-cockpit design-spec validate MCC-UI
 ```
