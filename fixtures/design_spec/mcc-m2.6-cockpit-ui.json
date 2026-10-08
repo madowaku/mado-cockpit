@@ -1,0 +1,71 @@
+{
+  "schema": "mado.design-change.v1",
+  "base_revision": 0,
+  "source_ref": "conversation:mcc-m2.6-initial-brief",
+  "initiator": "agent:codex",
+  "operations": [
+    {"op": "set", "field": "goal", "value": "Know which mission needs human attention without reading raw logs"},
+    {"op": "set", "field": "audiences", "value": ["solo developer", "reviewer"]},
+    {"op": "set", "field": "principles", "value": ["Humans approve consequential actions", "Every decision links to evidence"]},
+    {"op": "set", "field": "constraints", "value": ["Use existing local Cockpit UI", "No paid API required for specification compilation"]},
+    {
+      "op": "upsert",
+      "field": "screens",
+      "value": {
+        "id": "mission-list",
+        "title": "Mission Overview",
+        "purpose": "Find pending approvals and current status",
+        "states": ["loading", "ready", "empty", "error"],
+        "actions": [
+          {"id": "open-mission", "label": "Open mission", "next_screen": "mission-detail"}
+        ],
+        "accessibility": ["All actions reachable by keyboard", "Status is readable without color"]
+      }
+    },
+    {
+      "op": "upsert",
+      "field": "screens",
+      "value": {
+        "id": "mission-detail",
+        "title": "Mission Detail",
+        "purpose": "Inspect evidence and navigate to human approval",
+        "states": ["ready", "needs-human", "blocked"],
+        "actions": [
+          {"id": "inspect-gate", "label": "Inspect outstanding Human Question Gate"}
+        ],
+        "accessibility": ["Decisions have descriptive labels"]
+      }
+    },
+    {
+      "op": "upsert",
+      "field": "journeys",
+      "value": {
+        "id": "inspect-gate",
+        "title": "Find a human decision",
+        "steps": [
+          {"screen_id": "mission-list", "action_id": "open-mission"},
+          {"screen_id": "mission-detail", "action_id": "inspect-gate"}
+        ],
+        "done_when": ["User can identify the decision and its evidence"]
+      }
+    },
+    {
+      "op": "record_decision",
+      "field": "decisions",
+      "value": {
+        "id": "governance-001",
+        "statement": "Every material design choice is approved before promotion",
+        "rationale": "Keep human authority separate from agent suggestions"
+      }
+    },
+    {
+      "op": "upsert",
+      "field": "open_questions",
+      "value": {
+        "id": "nav-001",
+        "question": "Should approvals be a separate top-level navigation item?",
+        "choices": ["Separate navigation", "Mission detail only"]
+      }
+    }
+  ]
+}
