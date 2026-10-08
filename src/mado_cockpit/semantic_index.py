@@ -236,9 +236,11 @@ class ImageSource:
     def id(self) -> str:
         # Keep the same logical identity recipe as text chunks so the schema
         # remains backward-compatible with MCC-M2.6.
-        payload = f"{self.scope}\0{self.source}\00\0{self.source_sha256}"
+        payload = (
+            f"{self.scope}\\0{self.source}\\0{0}\\0"
+            f"{self.source_sha256}"
+        )
         return "sem_" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
-
 
 class SemanticEvidenceIndex:
     def __init__(
