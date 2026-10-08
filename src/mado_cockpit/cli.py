@@ -25,6 +25,7 @@ from .capabilities import (
     SystemOnePagerBridge,
 )
 from .evidence import EvidenceManager
+from .design_spec import DesignSpecManager
 from .gates import HumanQuestionGateManager
 from .handoffs import HandoffManager
 from .models import (
@@ -879,6 +880,29 @@ def build_parser() -> argparse.ArgumentParser:
     operator_verdict.add_argument(
         "--qa-result",
     )
+
+    design = sub.add_parser(
+        "design-spec",
+        help="MCC-M2.6 review-gated Living UI Spec",
+    )
+    design_sub = design.add_subparsers(
+        dest="design_command", required=True,
+    )
+    for command in ("init", "show", "history", "proposals", "validate"):
+        design_sub.add_parser(command).add_argument("mission_id")
+    design_preview = design_sub.add_parser("preview")
+    design_preview.add_argument("mission_id")
+    design_preview.add_argument("proposal_id")
+    design_propose = design_sub.add_parser("propose")
+    design_propose.add_argument("mission_id")
+    design_propose.add_argument("--file", required=True, type=Path)
+    design_review = design_sub.add_parser("review")
+    design_review.add_argument("mission_id")
+    design_review.add_argument("proposal_id")
+    design_review.add_argument("--decision", required=True, choices=["approve", "reject"])
+    design_review.add_argument("--reviewer", required=True)
+    design_review.add_argument("--human-confirm", action="store_true")
+    design_review.add_argument("--note", default="")
 
     ui = sub.add_parser(
         "ui",
@@ -1939,6 +1963,33 @@ def main(
                 )
             )
             return 0
+
+    if args.command == "design-spec":
+        manager = DesignSpecManager(store)
+        if args.design_command == "init":
+            _print_json(manager.init(args.mission_id))
+        elif args.design_command == "show":
+            _print_json(manager.show(args.mission_id))
+        elif args.design_command == "history":
+            _print_json(manager.history(args.mission_id))
+        elif args.design_command == "proposals":
+            _print_json(manager.proposals(args.mission_id))
+        elif args.design_command == "validate":
+            _print_json(manager.validate(args.mission_id))
+        elif args.design_command == "preview":
+            _print_json(manager.preview(args.mission_id, args.proposal_id))
+        elif args.design_command == "propose":
+            change = json.loads(args.file.read_text(encoding="utf-8"))
+            _print_json(manager.propose(args.mission_id, change))
+        elif args.design_command == "review":
+            _print_json(manager.review(
+                args.mission_id, args.proposal_id,
+                decision=args.decision,
+                reviewer=args.reviewer,
+                human_confirm=args.human_confirm,
+                note=args.note,
+            ))
+        return 0
 
     if args.command == "ui":
         serve_ui(
