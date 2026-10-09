@@ -1,0 +1,15 @@
+{
+  "target": {"runtime": "web", "url": "http://127.0.0.1:4173/"},
+  "viewport": {"width": 1280, "height": 720},
+  "steps": [
+    {"operation": "act", "actions": [
+      {"type": "bridge", "method": "setSeed", "value": 42},
+      {"type": "press", "key": "ArrowRight"},
+      {"type": "bridge", "method": "step", "value": 3}
+    ], "expectGameState": {"seed": 42, "tick": 3, "inputs": ["press"]}},
+    {"operation": "inspect", "expectGameState": {"tick": 3}},
+    {"operation": "capture"},
+    {"operation": "act", "actions": [{"type": "bridge", "method": "reset"}],
+     "expectGameState": {"tick": 0, "inputs": []}}
+  ]
+}
