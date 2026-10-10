@@ -870,3 +870,23 @@ The UI server fixture binds an ephemeral localhost port and uses only the Python
 9. **MCC-M0.8 Cockpit UI** ✅
 
 See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
+
+## MCC-M2.7-AS Agent Substrate Compatibility Lab
+
+A zero-cost **offline contract replay** compares a native snapshot and a
+candidate snapshot on the same Mission. The replay checks outcome parity,
+content-addressed evidence envelopes, temporal fact conflicts, sandbox
+declarations, trace coverage and human/policy fences.
+
+Run it after installing the package with the dev extras:
+
+~~~bash
+mado-cockpit-substrate fixtures/substrate/mcc-m2.7-agent-substrate-parity.json --root . --out /tmp/substrate-report.json
+python scripts/substrate_lab_smoke.py
+~~~
+
+The report always declares PydanticAI, Graphiti, E2B, Langfuse and DeepEval
+as **not integrated**. A PASS proves only reproducible replay-envelope
+compatibility and cannot authorize live actions or production promotion.
+
+See [the MCC-M2.7-AS runbook](docs/MCC-M2.7_AS_AGENT_SUBSTRATE_COMPATIBILITY_LAB.md).
