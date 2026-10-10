@@ -16,8 +16,9 @@ from .models import Event, utc_now
 from .store import CockpitStore
 
 SCHEMA = "mado.design-discovery.v1"
-# The exact first-ten-source digest identifies registries created by MCC-M2.6.2.
-LEGACY_CATALOG_SIZE = 10
+# Historical catalog prefixes keep original records and human approvals usable.
+LEGACY_CATALOG_SIZE = 10  # retained as an API-compatible constant
+LEGACY_CATALOG_SIZES = (10, 18)
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -37,11 +38,21 @@ SOURCES = (
     ("unicorn-studio", "unicorn.studio", "effects", "Interactive shaders and web motion effects", "webgl shaders effects animation"),
     ("paper", "paper.design", "design-system", "Agent-connected visual design canvas", "canvas mcp codex design tokens web"),
     ("theatrejs", "theatrejs.com", "motion", "Web animation authoring and sequencing", "animation javascript motion timeline"),
+    ("annnimate", "annnimate.com", "motion", "GSAP-powered React and Vue animated components", "gsap react vue motion animations paid"),
+    ("uselayouts", "uselayouts.com", "components", "Interactive React layouts and components", "react layout components interaction"),
+    ("arc-ui", "uiarc.dev", "components", "React and shadcn components and blocks", "react shadcn blocks motion"),
+    ("kobra-systems", "kobra.systems", "agent-ui", "AI agent interface and standard UI components", "agents reasoning diff chat approvals react"),
+    ("bencho", "bencho.dev", "interactions", "Interactive React components and microinteractions", "react drag hover press interactions"),
+    ("hyperiux-vault", "vault.hyperiux.com", "effects", "Source-first effects for React and Next.js", "react nextjs gsap webgl scroll effects"),
+    ("libraries-dev", "libraries.dev", "discovery", "Curated UI libraries for AI agents", "ui library agents directory"),
+    ("beui", "beui.dev", "components", "Animated React and Next.js components", "react nextjs tailwind motion shadcn"),
+    ("beautifului", "beautifului.dev", "agent-ui", "AI-native interface primitives", "agents approval streaming tool calls chat"),
+    ("ui-maxxing", "uimaxx.ing", "discovery", "Design component resource link, pending site verification", "ui design components unverified"),
 )
 CATALOG = tuple(
     {
         "id": ident,
-        "url": f"https://{host}/",
+        "url": f"https://{host}/animations" if ident == "annnimate" else f"https://{host}/",
         "host": host,
         "category": category,
         "description": description,
@@ -117,18 +128,25 @@ class DesignDiscoveryHub:
             if data.get("schema") != SCHEMA or not isinstance(data.get("references"), list):
                 raise DiscoveryError("Registry schema mismatch")
             current_fingerprint = _digest({"sources": CATALOG})
-            legacy_fingerprint = _digest({"sources": CATALOG[:LEGACY_CATALOG_SIZE]})
-            if data.get("source_catalog_sha256") == legacy_fingerprint:
-                # Fail closed before changing a persisted registry or its audit state.
-                # The approved-reference digests and review receipts are preserved.
+            legacy_versions = {
+                _digest({"sources": CATALOG[:size]}): size
+                for size in LEGACY_CATALOG_SIZES
+            }
+            previous_size = legacy_versions.get(data.get("source_catalog_sha256"))
+            if previous_size is not None:
+                # Only known historical fingerprints may be migrated. Check every
+                # exact record before changing the registry or preserving a review.
+                historical_ids = {source["id"] for source in CATALOG[:previous_size]}
                 for record in data["references"]:
                     self._verify(record)
+                    if record["source_id"] not in historical_ids:
+                        raise DiscoveryError("Reference source predates catalog version")
                 data["source_catalog_sha256"] = current_fingerprint
                 _save(self.path, data)
                 self.store.append_event(Event(
                     type="design.discovery.catalog_upgraded",
                     subject={
-                        "from_source_count": LEGACY_CATALOG_SIZE,
+                        "from_source_count": previous_size,
                         "to_source_count": len(CATALOG),
                         "preserved_reference_count": len(data["references"]),
                     },
