@@ -1,0 +1,152 @@
+{
+  "schema": "mado.agent-substrate.fixture.v1",
+  "as_of": "2026-10-10T00:00:00Z",
+  "mission": {
+    "id": "MCC-M2.7-AS-demo",
+    "objective": "Replay the same mission through two runtime contracts.",
+    "required_evidence": [
+      "test_result",
+      "session_trace"
+    ]
+  },
+  "runs": [
+    {
+      "runtime": "native-replay",
+      "adapter": "replay",
+      "outcome": {
+        "status": "completed",
+        "result": {
+          "decision": "hold_external_side_effects",
+          "items_accepted": 2
+        },
+        "evidence": [
+          {
+            "kind": "test_result",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "fixture://qa/test_result"
+          },
+          {
+            "kind": "session_trace",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "source": "fixture://trace/session_trace"
+          }
+        ]
+      },
+      "memory": [
+        {
+          "key": "provider_mode",
+          "value": "legacy",
+          "valid_from": "2026-10-01T00:00:00Z",
+          "valid_to": "2026-10-08T00:00:00Z",
+          "source": "fixture://memory/old"
+        },
+        {
+          "key": "provider_mode",
+          "value": "replay",
+          "valid_from": "2026-10-08T00:00:00Z",
+          "valid_to": null,
+          "source": "fixture://memory/new"
+        }
+      ],
+      "execution": {
+        "sandbox": "fixture-only",
+        "network": false,
+        "code_execution": false,
+        "cost_usd": 0
+      },
+      "trace": [
+        {
+          "event": "mission.started",
+          "source": "fixture://trace/start"
+        },
+        {
+          "event": "outcome.recorded",
+          "source": "fixture://trace/outcome"
+        },
+        {
+          "event": "evaluation.completed",
+          "source": "fixture://trace/eval"
+        }
+      ],
+      "tool_calls": [
+        {
+          "action": "fixture.lookup",
+          "effect": "read",
+          "target_kind": "fixture",
+          "target": {
+            "id": "lookup-1"
+          }
+        }
+      ]
+    },
+    {
+      "runtime": "candidate-replay",
+      "adapter": "replay",
+      "outcome": {
+        "status": "completed",
+        "result": {
+          "decision": "hold_external_side_effects",
+          "items_accepted": 2
+        },
+        "evidence": [
+          {
+            "kind": "test_result",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "fixture://qa/test_result"
+          },
+          {
+            "kind": "session_trace",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "source": "fixture://trace/session_trace"
+          }
+        ]
+      },
+      "memory": [
+        {
+          "key": "provider_mode",
+          "value": "legacy",
+          "valid_from": "2026-10-01T00:00:00Z",
+          "valid_to": "2026-10-08T00:00:00Z",
+          "source": "fixture://memory/old"
+        },
+        {
+          "key": "provider_mode",
+          "value": "replay",
+          "valid_from": "2026-10-08T00:00:00Z",
+          "valid_to": null,
+          "source": "fixture://memory/new"
+        }
+      ],
+      "execution": {
+        "sandbox": "fixture-only",
+        "network": false,
+        "code_execution": false,
+        "cost_usd": 0
+      },
+      "trace": [
+        {
+          "event": "mission.started",
+          "source": "fixture://trace/start"
+        },
+        {
+          "event": "outcome.recorded",
+          "source": "fixture://trace/outcome"
+        },
+        {
+          "event": "evaluation.completed",
+          "source": "fixture://trace/eval"
+        }
+      ],
+      "tool_calls": [
+        {
+          "action": "fixture.lookup",
+          "effect": "read",
+          "target_kind": "fixture",
+          "target": {
+            "id": "lookup-1"
+          }
+        }
+      ]
+    }
+  ]
+}
