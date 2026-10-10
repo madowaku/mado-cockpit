@@ -16,6 +16,7 @@ dev = ["pytest>=8.0"]
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
 mado-cockpit-mcp = "mado_cockpit.mcp_server:main"
+mado-cockpit-substrate = "mado_cockpit.substrate_lab:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
