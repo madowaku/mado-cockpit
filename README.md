@@ -874,12 +874,13 @@ See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
 
 ### MCC-M2.6.2 Design Discovery Hub
 
-Metadata-only design reference registry for Designeer and nine curated design sites. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
+Metadata-only design reference registry for Designeer and 17 other curated design-engineering sources (18 total). External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
 
 ```bash
 python -m mado_cockpit.design_discovery --root . bootstrap
 python -m mado_cockpit.design_discovery --root . sources --query ui
+python -m mado_cockpit.design_discovery --root . sources --query 3d
 python -m mado_cockpit.design_discovery --root . pack --query ios --output design-context.json
 ```
 
-Requires an initialized Cockpit. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
+Requires an initialized Cockpit. If upgrading an existing 10-source registry, rerun `bootstrap` to retain reviews and migrate its catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
