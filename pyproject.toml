@@ -12,11 +12,13 @@ dependencies = ["mcp>=2.0,<3"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+pydanticai-probe = ["pydantic-ai-slim==2.55.0"]
 
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
 mado-cockpit-mcp = "mado_cockpit.mcp_server:main"
 mado-cockpit-substrate = "mado_cockpit.substrate_lab:main"
+mado-cockpit-pydanticai-probe = "mado_cockpit.pydanticai_probe:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

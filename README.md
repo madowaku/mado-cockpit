@@ -890,3 +890,24 @@ as **not integrated**. A PASS proves only reproducible replay-envelope
 compatibility and cannot authorize live actions or production promotion.
 
 See [the MCC-M2.7-AS runbook](docs/MCC-M2.7_AS_AGENT_SUBSTRATE_COMPATIBILITY_LAB.md).
+
+## MCC-M2.7.1 PydanticAI Local Runtime / Provider Contract Probe
+
+M2.7-AS can now exercise a **real PydanticAI Agent** running the procedural
+**TestModel**, with typed output, a human-control-fenced fixture lookup tool,
+and parity checks against the native replay contract. This is a $0 external
+model probe, not a measure of the quality of AI inference.
+
+~~~bash
+pip install -e ".[dev,pydanticai-probe]"
+mado-cockpit-pydanticai-probe \
+  --baseline fixtures/substrate/mcc-m2.7-agent-substrate-parity.json \
+  --probe fixtures/substrate/mcc-m2.7.1-pydanticai-testmodel.json \
+  --root .
+python scripts/pydanticai_probe_smoke.py
+~~~
+
+The SDK is optional and version-pinned. A PASS is limited to local contract
+compatibility, never live provider authorization or release approval.
+
+See [MCC-M2.7.1 runbook](docs/MCC-M2.7.1_PYDANTICAI_LOCAL_PROVIDER_PROBE.md).
