@@ -78,7 +78,6 @@ def test_content_hash_difference_blocks_promotion(inputs, tmp_path):
     lambda p: p["model_output"].update(status="uncertain"),
     lambda p: p["model_output"]["evidence"][0].update(sha256="bad"),
     lambda p: p["model_output"]["evidence"][0].update(secret="LEAK-ME"),
-    lambda p: p["model_output"].update(unexpected="LEAK-ME"),
 ])
 def test_invalid_generated_payload_fails_closed_without_leaking(
     inputs, tmp_path, edit,
@@ -90,6 +89,15 @@ def test_invalid_generated_payload_fails_closed_without_leaking(
     assert report["production_promotion_allowed"] is False
     assert "LEAK-ME" not in json.dumps(report)
     assert report["agent"]["actual_agent_executed"]
+
+
+
+def test_unexpected_model_output_keys_rejected_before_agent(inputs, tmp_path):
+    baseline, probe = inputs
+    probe["model_output"]["unexpected"] = "LEAK-ME"
+    with pytest.raises(LocalProbeError):
+        run_local_provider_probe(baseline, probe, root=tmp_path)
+    assert not list((tmp_path / ".mado/cockpit/action_decisions").glob("*.json"))
 
 
 def test_human_control_lease_fences_real_pydanticai_tool(inputs, tmp_path):
