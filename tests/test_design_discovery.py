@@ -16,9 +16,9 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
     return result
 
 
-def test_twenty_eight_sources_and_no_automatic_fetch(tmp_path):
+def test_thirty_six_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 28
+    assert len(CATALOG) == 36
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
@@ -201,7 +201,7 @@ def test_annnimate_source_points_to_user_requested_animation_index(tmp_path):
     assert entry["url"] == "https://annnimate.com/animations"
 
 
-@pytest.mark.parametrize("legacy_size", [10, 18])
+@pytest.mark.parametrize("legacy_size", [10, 18, 28])
 def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_size):
     item = hub(tmp_path)
     old_source = "paper" if legacy_size == 18 else "evilbuttons"
@@ -226,7 +226,7 @@ def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_si
               if event["type"] == "design.discovery.catalog_upgraded"]
     assert len(events) == 1
     assert events[0]["subject"]["from_source_count"] == legacy_size
-    assert events[0]["subject"]["to_source_count"] == 28
+    assert events[0]["subject"]["to_source_count"] == 36
 
 
 def test_legacy_fingerprint_cannot_claim_future_sources(tmp_path):
@@ -246,3 +246,78 @@ def test_new_library_wrong_domain_is_blocked(tmp_path):
     with pytest.raises(DiscoveryError, match="URL domain"):
         item.add("hyperiux-vault", "Spoof", "https://vault.hyperiux.com.attacker.test/",
                  note="Must not accept spoofed host")
+
+
+@pytest.mark.parametrize("source_id,host,expected_category", [
+    ("remotion", "remotion.dev", "video"),
+    ("motion-dev", "motion.dev", "motion"),
+    ("lottiefiles", "lottiefiles.com", "motion-assets"),
+    ("rive", "rive.app", "interactive-motion"),
+    ("gsap", "gsap.com", "motion"),
+    ("threejs", "threejs.org", "3d"),
+    ("lucide", "lucide.dev", "icons"),
+    ("reactbits", "reactbits.dev", "components"),
+])
+def test_motion_source_bookmarks_are_metadata_only(tmp_path, source_id, host, expected_category):
+    item = hub(tmp_path)
+    source = next(source for source in item.sources() if source["id"] == source_id)
+    assert source["host"] == host
+    assert source["category"] == expected_category
+    assert source["mode"] == "manual_link_only"
+    assert source["rights"] == "unverified"
+    ref = item.add(source_id, "Animation reference", f"https://{host}/",
+                   note="Only a bookmark until licensing and explicit human review")
+    assert ref["status"] == "pending"
+    assert not item.context_pack()["approved_references"]
+
+
+def test_video_and_animation_queries_and_policy_in_context_pack(tmp_path):
+    item = hub(tmp_path)
+    assert "remotion" in {ref["id"] for ref in item.sources("video")}
+    assert "threejs" in {ref["id"] for ref in item.sources("webgl")}
+    assert "lottiefiles" in {ref["id"] for ref in item.sources("dotlottie")}
+    assert "lucide" in {ref["id"] for ref in item.sources("svg")}
+    ref = item.add("remotion", "My video experiment", "https://remotion.dev/docs",
+                   note="Reference for a potential product-video pipeline")
+    assert item.context_pack("video")["approved_references"] == []
+    item.review(ref["id"], decision="approve", actor="human:owner",
+                note="Approved reference-only usage after checking provenance")
+    pack = item.context_pack("video")
+    assert [record["id"] for record in pack["approved_references"]] == [ref["id"]]
+    assert any("code and asset reuse requires" in line for line in pack["instructions"])
+
+
+def test_old_28_source_registry_with_approved_agent_ui_survives(tmp_path):
+    item = hub(tmp_path)
+    ref = item.add("beautifului", "AI UI", "https://beautifului.dev/",
+                   note="Human approved this agent component reference")
+    item.review(ref["id"], decision="approve", actor="human:owner",
+                note="Agent UI research only, no copying or publishing")
+    original = item.references()
+    ledger = item.audit.read_bytes()
+    registry = json.loads(item.path.read_text(encoding="utf-8"))
+    registry["source_catalog_sha256"] = _digest({"sources": CATALOG[:28]})
+    item.path.write_text(json.dumps(registry), encoding="utf-8")
+    assert item.bootstrap()["status"] == "upgraded"
+    assert item.references() == original
+    assert item.audit.read_bytes() == ledger
+    assert [entry["id"] for entry in item.context_pack()["approved_references"]] == [ref["id"]]
+
+
+def test_old_28_source_fingerprint_cannot_contain_new_motion_reference(tmp_path):
+    item = hub(tmp_path)
+    item.add("remotion", "Impossible old motion reference", "https://remotion.dev/",
+             note="New source cannot have existed in the old registry")
+    registry = json.loads(item.path.read_text(encoding="utf-8"))
+    registry["source_catalog_sha256"] = _digest({"sources": CATALOG[:28]})
+    item.path.write_text(json.dumps(registry), encoding="utf-8")
+    with pytest.raises(DiscoveryError, match="predates catalog version"):
+        item.bootstrap()
+    assert json.loads(item.path.read_text(encoding="utf-8")) == registry
+
+
+def test_motion_source_domain_spoof_is_rejected(tmp_path):
+    item = hub(tmp_path)
+    with pytest.raises(DiscoveryError, match="URL domain"):
+        item.add("remotion", "Spoof", "https://remotion.dev.evil.example/",
+                 note="Do not accept domain lookalikes")
