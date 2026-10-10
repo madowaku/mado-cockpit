@@ -874,14 +874,16 @@ See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
 
 ### MCC-M2.6.2 Design Discovery Hub
 
-Metadata-only design reference registry for Designeer and 27 other curated design-engineering sources (28 total), including React component libraries and AI-native interface primitives. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
+Metadata-only design reference registry for Designeer and 35 other curated design-engineering sources (36 total), including React components, AI-native interfaces, and motion-graphics production tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
 
 ```bash
 python -m mado_cockpit.design_discovery --root . bootstrap
 python -m mado_cockpit.design_discovery --root . sources --query ui
 python -m mado_cockpit.design_discovery --root . sources --query 3d
 python -m mado_cockpit.design_discovery --root . sources --query agents
+python -m mado_cockpit.design_discovery --root . sources --query animation
+python -m mado_cockpit.design_discovery --root . sources --query video
 python -m mado_cockpit.design_discovery --root . pack --query ios --output design-context.json
 ```
 
-Requires an initialized Cockpit. If upgrading an existing 10-source or 18-source registry, rerun `bootstrap` to retain approvals, rejections, and review history while migrating the catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
+Requires an initialized Cockpit. If upgrading an existing 10-, 18-, or 28-source registry, rerun `bootstrap` to preserve approvals, rejections and review history while migrating the catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.

@@ -18,7 +18,7 @@ from .store import CockpitStore
 SCHEMA = "mado.design-discovery.v1"
 # Historical catalog prefixes keep original records and human approvals usable.
 LEGACY_CATALOG_SIZE = 10  # retained as an API-compatible constant
-LEGACY_CATALOG_SIZES = (10, 18)
+LEGACY_CATALOG_SIZES = (10, 18, 28)
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -48,6 +48,14 @@ SOURCES = (
     ("beui", "beui.dev", "components", "Animated React and Next.js components", "react nextjs tailwind motion shadcn"),
     ("beautifului", "beautifului.dev", "agent-ui", "AI-native interface primitives", "agents approval streaming tool calls chat"),
     ("ui-maxxing", "uimaxx.ing", "discovery", "Design component resource link, pending site verification", "ui design components unverified"),
+    ("remotion", "remotion.dev", "video", "Programmatic videos with React compositions and rendering", "react video render motion graphics codex agent skills"),
+    ("motion-dev", "motion.dev", "motion", "Production React and JavaScript animations", "react animation transitions gestures spring timeline"),
+    ("lottiefiles", "lottiefiles.com", "motion-assets", "Marketplace of Lottie and dotLottie animated assets", "lottie dotlottie json animation assets license"),
+    ("rive", "rive.app", "interactive-motion", "Interactive vector animations with state machines", "vector state machine data binding interactive game ui"),
+    ("gsap", "gsap.com", "motion", "JavaScript animation engine and timelines", "gsap animation javascript timelines scroll react"),
+    ("threejs", "threejs.org", "3d", "JavaScript 3D graphics and WebGL rendering", "threejs webgl 3d graphics motion shaders"),
+    ("lucide", "lucide.dev", "icons", "Consistent SVG icon system", "icons svg lucide react icon motion"),
+    ("reactbits", "reactbits.dev", "components", "Animated React components and creative effects", "react components animated backgrounds motion"),
 )
 CATALOG = tuple(
     {
