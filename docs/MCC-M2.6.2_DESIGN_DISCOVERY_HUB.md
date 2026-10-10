@@ -4,7 +4,7 @@ This milestone creates a metadata-only, locally review-gated design reference re
 
 ## Initial source registry
 
-Eighteen curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
+Twenty-eight curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
 
 | ID | Official source | Scope |
 |---|---|---|
@@ -26,6 +26,16 @@ Eighteen curated reference sources are built into `mado_cockpit.design_discovery
 | unicorn-studio | https://unicorn.studio/ | Shaders and interactive web effects |
 | paper | https://paper.design/ | Agent-connected canvas and MCP workflows |
 | theatrejs | https://theatrejs.com/ | Web animation sequencing |
+| annnimate | https://annnimate.com/animations | GSAP animation components for React/Vue; mostly paid |
+| uselayouts | https://uselayouts.com/ | React layouts and interaction components |
+| arc-ui | https://uiarc.dev/ | React/shadcn components and blocks; free MIT and separate Pro licensing |
+| kobra-systems | https://kobra.systems/ | AI agent UI, forms, content, and feedback components |
+| bencho | https://bencho.dev/ | Interactive React components and microinteractions |
+| hyperiux-vault | https://vault.hyperiux.com/ | React/Next.js interaction effects; free and Pro tiers |
+| libraries-dev | https://libraries.dev/ | Agent-ready React visual effects libraries; free MIT npm packages and paid Studio |
+| beui | https://beui.dev/ | Animated React/Next.js components; free MIT and Pro options |
+| beautifului | https://beautifului.dev/ | AI-native component primitives and agent interfaces |
+| ui-maxxing | https://uimaxx.ing/ | User-supplied resource; site availability/content unverified |
 
 All entries initially declare `mode=manual_link_only` and `rights=unverified`. Listing a source implies no license grant, API compatibility, official relationship, or endorsement.
 
@@ -61,6 +71,16 @@ Sources are research links, not a blanket right to reuse code, fonts, videos, sh
 * Spline and Unicorn Studio offer free and paid usage tiers, with publishing and commercial-use restrictions. No automatic exports are enabled.
 * Paper has a free tier and official MCP/Codex workflows, but this module does not connect external accounts or enable editing.
 * Affect UI's live availability was not verified when this entry was added. It remains a metadata-only bookmark.
+
+## Component library expansion (MCC-M2.6.2b, 18 → 28)
+
+Rerun `python -m mado_cockpit.design_discovery --root . bootstrap` after updating the repository. Both known 10-source and 18-source catalog fingerprints migrate directly to the new 28-source catalog without clearing the existing registry or review audit.
+
+Only known historical fingerprints can migrate. The upgrade checks the SHA-256 of every existing reference and confirms that each source belonged to its historical catalog. Pending, rejected, and approved references stay intact. Unknown fingerprints, tampering, and impossible historical source IDs fail closed. The operation is idempotent and emits one upgrade event.
+
+This is a **bookmark/reference registry, not a component installer**. Do not execute installation commands embedded in component metadata. Before importing any asset or source code, independently verify: the selected component's license, dependency versions, provenance, React compatibility, keyboard/touch accessibility, reduced-motion behavior, and performance in browser QA. Arc UI free and Pro portions, beUI free and Pro portions, Annnimate paid products, and Hyperiux Vault paid effects must not be treated as having identical rights.
+
+Live verification found nine working sites or pages; `uimaxx.ing` was inaccessible in the current research environment, so its bookmark is preserved with an unverified description rather than asserting that its component downloads work. `libraries.dev` is an agent-ready React effects product (MIT-licensed free libraries), not a general-purpose package registry.
 
 ## Reference intake and review
 
@@ -122,4 +142,4 @@ pytest -q tests/test_design_discovery.py
 pytest -q
 ```
 
-Acceptance covers 18-source catalog and migration from the exact legacy 10-source fingerprint, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
+Acceptance covers 28-source catalog and migration from the exact legacy 10-source or 18-source fingerprint, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.

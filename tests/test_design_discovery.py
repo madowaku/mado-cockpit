@@ -16,9 +16,9 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
     return result
 
 
-def test_eighteen_sources_and_no_automatic_fetch(tmp_path):
+def test_twenty_eight_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 18
+    assert len(CATALOG) == 28
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
@@ -169,3 +169,80 @@ def test_migration_rejects_tampered_references_without_writing(tmp_path):
     assert json.loads(item.path.read_text(encoding="utf-8")) == before
     assert not [event for event in item.store.list_events()
                 if event["type"] == "design.discovery.catalog_upgraded"]
+
+
+@pytest.mark.parametrize("source_id,expected_host", [
+    ("annnimate", "annnimate.com"),
+    ("uselayouts", "uselayouts.com"),
+    ("arc-ui", "uiarc.dev"),
+    ("kobra-systems", "kobra.systems"),
+    ("bencho", "bencho.dev"),
+    ("hyperiux-vault", "vault.hyperiux.com"),
+    ("libraries-dev", "libraries.dev"),
+    ("beui", "beui.dev"),
+    ("beautifului", "beautifului.dev"),
+    ("ui-maxxing", "uimaxx.ing"),
+])
+def test_component_sources_are_metadata_only(tmp_path, source_id, expected_host):
+    item = hub(tmp_path)
+    entry = next(source for source in item.sources() if source["id"] == source_id)
+    assert entry["host"] == expected_host
+    assert entry["mode"] == "manual_link_only"
+    assert entry["rights"] == "unverified"
+    candidate = item.add(source_id, "UI reference", f"https://{expected_host}/",
+                         note="Stored as a research bookmark, no code download")
+    assert candidate["status"] == "pending"
+    assert not item.context_pack()["approved_references"]
+
+
+def test_annnimate_source_points_to_user_requested_animation_index(tmp_path):
+    item = hub(tmp_path)
+    entry = next(source for source in item.sources() if source["id"] == "annnimate")
+    assert entry["url"] == "https://annnimate.com/animations"
+
+
+@pytest.mark.parametrize("legacy_size", [10, 18])
+def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_size):
+    item = hub(tmp_path)
+    old_source = "paper" if legacy_size == 18 else "evilbuttons"
+    approved = item.add(old_source, "Historical UI reference",
+                        f"https://{next(source['host'] for source in CATALOG if source['id'] == old_source)}/",
+                        note="Human-reviewed before the catalog migration")
+    item.review(approved["id"], decision="approve", actor="human:owner",
+                note="Accepted for link research only")
+    snapshot = item.references()
+    ledger = item.audit.read_text(encoding="utf-8")
+    data = json.loads(item.path.read_text(encoding="utf-8"))
+    data["source_catalog_sha256"] = _digest({"sources": CATALOG[:legacy_size]})
+    item.path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(DiscoveryError, match="catalog mismatch"):
+        item.context_pack()
+    assert item.bootstrap()["status"] == "upgraded"
+    assert item.bootstrap()["status"] == "existing"
+    assert item.references() == snapshot
+    assert item.audit.read_text(encoding="utf-8") == ledger
+    assert [ref["id"] for ref in item.context_pack()["approved_references"]] == [approved["id"]]
+    events = [event for event in item.store.list_events()
+              if event["type"] == "design.discovery.catalog_upgraded"]
+    assert len(events) == 1
+    assert events[0]["subject"]["from_source_count"] == legacy_size
+    assert events[0]["subject"]["to_source_count"] == 28
+
+
+def test_legacy_fingerprint_cannot_claim_future_sources(tmp_path):
+    item = hub(tmp_path)
+    item.add("beautifului", "Unknown to earlier edition", "https://beautifului.dev/",
+             note="New catalog member with old fingerprint")
+    data = json.loads(item.path.read_text(encoding="utf-8"))
+    data["source_catalog_sha256"] = _digest({"sources": CATALOG[:18]})
+    item.path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(DiscoveryError, match="predates catalog version"):
+        item.bootstrap()
+    assert json.loads(item.path.read_text(encoding="utf-8")) == data
+
+
+def test_new_library_wrong_domain_is_blocked(tmp_path):
+    item = hub(tmp_path)
+    with pytest.raises(DiscoveryError, match="URL domain"):
+        item.add("hyperiux-vault", "Spoof", "https://vault.hyperiux.com.attacker.test/",
+                 note="Must not accept spoofed host")
