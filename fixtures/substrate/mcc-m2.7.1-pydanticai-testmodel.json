@@ -1,0 +1,23 @@
+{
+  "schema": "mado.pydanticai-local-probe.input.v1",
+  "mode": "testmodel",
+  "model_output": {
+    "status": "completed",
+    "result": {
+      "decision": "hold_external_side_effects",
+      "items_accepted": 2
+    },
+    "evidence": [
+      {
+        "kind": "test_result",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source": "fixture://qa/test_result"
+      },
+      {
+        "kind": "session_trace",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "source": "fixture://trace/session_trace"
+      }
+    ]
+  }
+}
