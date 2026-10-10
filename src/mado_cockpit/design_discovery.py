@@ -16,6 +16,8 @@ from .models import Event, utc_now
 from .store import CockpitStore
 
 SCHEMA = "mado.design-discovery.v1"
+# The exact first-ten-source digest identifies registries created by MCC-M2.6.2.
+LEGACY_CATALOG_SIZE = 10
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -27,6 +29,14 @@ SOURCES = (
     ("designbookmark", "designbookmark.com", "discovery", "Design resource directory", "catalog ui ux"),
     ("amicons", "amicons.design", "icons", "Illustrated icon resource", "icon handdrawn"),
     ("graphical", "graphicalui.com", "design-system", "Agent-oriented design language", "gui.md theme tokens"),
+    ("affectui", "affectui.com", "components", "UI component reference library", "ui components react patterns"),
+    ("inspora", "inspora.design", "inspiration", "Curated web, product and visual design inspiration", "web product branding motion inspiration"),
+    ("21st-dev", "21st.dev", "components", "Community React components and agent-ready prompts", "react shadcn tailwind codex components"),
+    ("bestfreefonts", "bestfreefonts.com", "fonts", "Curated free font discovery directory", "font typography typeface license"),
+    ("spline", "spline.design", "3d", "Interactive browser-based 3D design", "3d interactive web visual"),
+    ("unicorn-studio", "unicorn.studio", "effects", "Interactive shaders and web motion effects", "webgl shaders effects animation"),
+    ("paper", "paper.design", "design-system", "Agent-connected visual design canvas", "canvas mcp codex design tokens web"),
+    ("theatrejs", "theatrejs.com", "motion", "Web animation authoring and sequencing", "animation javascript motion timeline"),
 )
 CATALOG = tuple(
     {
@@ -103,6 +113,27 @@ class DesignDiscoveryHub:
 
     def bootstrap(self) -> dict[str, Any]:
         if self.path.exists():
+            data = _json(self.path)
+            if data.get("schema") != SCHEMA or not isinstance(data.get("references"), list):
+                raise DiscoveryError("Registry schema mismatch")
+            current_fingerprint = _digest({"sources": CATALOG})
+            legacy_fingerprint = _digest({"sources": CATALOG[:LEGACY_CATALOG_SIZE]})
+            if data.get("source_catalog_sha256") == legacy_fingerprint:
+                # Fail closed before changing a persisted registry or its audit state.
+                # The approved-reference digests and review receipts are preserved.
+                for record in data["references"]:
+                    self._verify(record)
+                data["source_catalog_sha256"] = current_fingerprint
+                _save(self.path, data)
+                self.store.append_event(Event(
+                    type="design.discovery.catalog_upgraded",
+                    subject={
+                        "from_source_count": LEGACY_CATALOG_SIZE,
+                        "to_source_count": len(CATALOG),
+                        "preserved_reference_count": len(data["references"]),
+                    },
+                ))
+                return {"status": "upgraded", "sources": len(CATALOG), "path": str(self.path)}
             self._read()
             return {"status": "existing", "sources": len(CATALOG), "path": str(self.path)}
         _save(self.path, {"schema": SCHEMA, "source_catalog_sha256": _digest({"sources": CATALOG}), "references": []})
