@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -141,7 +142,7 @@ def _validate_fixture(data: Any) -> dict[str, Any]:
         if type(execution.get("code_execution")) is not bool:
             raise SubstrateLabError("execution.code_execution must be boolean")
         cost = execution.get("cost_usd")
-        if type(cost) not in (float, int) or cost < 0:
+        if type(cost) not in (float, int) or not math.isfinite(cost) or cost < 0:
             raise SubstrateLabError("execution.cost_usd must be nonnegative")
     if labels[0] == labels[1]:
         raise SubstrateLabError("baseline and candidate runtime labels must differ")
@@ -175,6 +176,21 @@ def _active_memory(run: Mapping[str, Any], at: datetime) -> tuple[dict[str, str]
             if key in current and current[key] != value:
                 errors.append(key)
             current[key] = value
+    # Reject contradictory facts even when their overlap is historical.
+    facts = run["memory"]
+    maximum = datetime.max.replace(tzinfo=timezone.utc)
+    for index, left in enumerate(facts):
+        left_start = _timestamp(left["valid_from"], "valid_from")
+        left_end = (_timestamp(left["valid_to"], "valid_to")
+                    if left.get("valid_to") else maximum)
+        for right in facts[index + 1:]:
+            if left["key"] != right["key"] or left["value"] == right["value"]:
+                continue
+            right_start = _timestamp(right["valid_from"], "valid_from")
+            right_end = (_timestamp(right["valid_to"], "valid_to")
+                         if right.get("valid_to") else maximum)
+            if left_start < right_end and right_start < left_end:
+                errors.append(left["key"])
     return current, sorted(set(errors))
 
 
