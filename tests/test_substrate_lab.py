@@ -74,6 +74,19 @@ def test_temporal_conflict_holds(sample, tmp_path):
     assert "candidate-replay:memory" in failed(report)
 
 
+
+def test_historical_temporal_conflict_holds(sample, tmp_path):
+    # Two contradictory values overlap, even though neither is current as_of.
+    sample["runs"][0]["memory"].append({
+        "key": "provider_mode", "value": "outdated-contradiction",
+        "valid_from": "2026-10-03T00:00:00Z",
+        "valid_to": "2026-10-07T00:00:00Z",
+        "source": "fixture://memory/conflicted-past",
+    })
+    report = run_compatibility_fixture(sample, root=tmp_path)
+    assert "native-replay:memory" in failed(report)
+
+
 def test_memory_parity_holds_on_drift(sample, tmp_path):
     sample["runs"][1]["memory"][1]["value"] = "new-provider"
     report = run_compatibility_fixture(sample, root=tmp_path)
@@ -133,6 +146,7 @@ def test_noncompleted_status_holds(sample, tmp_path):
         copy.deepcopy(f["runs"][0]["outcome"]["evidence"][0])),
     lambda f: f.update(as_of="2026-10-10"),
     lambda f: f["runs"][1]["execution"].update(network="no"),
+    lambda f: f["runs"][1]["execution"].update(cost_usd=float("nan")),
 ])
 def test_bad_fixture_fails_before_dispatch(sample, tmp_path, edit):
     edit(sample)
