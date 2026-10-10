@@ -4,7 +4,7 @@ This milestone creates a metadata-only, locally review-gated design reference re
 
 ## Initial source registry
 
-Twenty-eight curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
+Thirty-six curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
 
 | ID | Official source | Scope |
 |---|---|---|
@@ -36,6 +36,14 @@ Twenty-eight curated reference sources are built into `mado_cockpit.design_disco
 | beui | https://beui.dev/ | Animated React/Next.js components; free MIT and Pro options |
 | beautifului | https://beautifului.dev/ | AI-native component primitives and agent interfaces |
 | ui-maxxing | https://uimaxx.ing/ | User-supplied resource; site availability/content unverified |
+| remotion | https://remotion.dev/ | React-based video composition/rendering; source-available, custom license |
+| motion-dev | https://motion.dev/ | React and JavaScript UI animations, transitions and gestures |
+| lottiefiles | https://lottiefiles.com/ | Animated Lottie/dotLottie assets; asset-specific terms |
+| rive | https://rive.app/ | State-machine driven interactive vector animations; exports may require paid tier |
+| gsap | https://gsap.com/ | JavaScript animation engine, timelines and scroll effects; GSAP Standard License |
+| threejs | https://threejs.org/ | WebGL 3D animation and rendering; MIT library |
+| lucide | https://lucide.dev/ | SVG icon system; ISC icon license |
+| reactbits | https://reactbits.dev/ | Animated React components; MIT library |
 
 All entries initially declare `mode=manual_link_only` and `rights=unverified`. Listing a source implies no license grant, API compatibility, official relationship, or endorsement.
 
@@ -81,6 +89,35 @@ Only known historical fingerprints can migrate. The upgrade checks the SHA-256 o
 This is a **bookmark/reference registry, not a component installer**. Do not execute installation commands embedded in component metadata. Before importing any asset or source code, independently verify: the selected component's license, dependency versions, provenance, React compatibility, keyboard/touch accessibility, reduced-motion behavior, and performance in browser QA. Arc UI free and Pro portions, beUI free and Pro portions, Annnimate paid products, and Hyperiux Vault paid effects must not be treated as having identical rights.
 
 Live verification found nine working sites or pages; `uimaxx.ing` was inaccessible in the current research environment, so its bookmark is preserved with an unverified description rather than asserting that its component downloads work. `libraries.dev` is an agent-ready React effects product (MIT-licensed free libraries), not a general-purpose package registry.
+
+## Motion graphics expansion (MCC-M2.6.2c, 28 → 36)
+
+This increment adds the eight user-supplied sources above without installing packages, importing content, downloading Lottie animations, fetching icons, creating new subscriptions, or executing third-party code. The catalog is a metadata-only **research index**. References require explicit human review for inclusion in Codex context packs.
+
+### Upgrade existing registries
+
+Existing 10-source, 18-source and 28-source registries can migrate directly to 36 sources by rerunning:
+
+```sh
+python -m mado_cockpit.design_discovery --root . bootstrap
+python -m mado_cockpit.design_discovery --root . sources --query video
+python -m mado_cockpit.design_discovery --root . sources --query animation
+python -m mado_cockpit.design_discovery --root . sources --query 3d
+```
+
+The upgrade recognizes only exact historical catalog fingerprints. It validates every stored reference digest, review binding and the source's membership in its historical catalog before committing the new fingerprint. It preserves reference IDs and review audit logs and emits one `design.discovery.catalog_upgraded` event. Unknown fingerprints, impossible historical records and altered reference data are rejected without migration. Re-running `bootstrap` is idempotent.
+
+### Choosing a tool, with rights awareness
+
+* **Remotion** is source-available and is *not* OSI-open-source. Its Free License is available for individuals and teams of up to three, subject to specific terms; a Company License may be required for larger or automation-product use. Official agent skills are available, but are not installed here.
+* **Motion** is useful for app UI motion. Inspect production dependencies and their licenses before shipping.
+* **LottieFiles** offers free assets under a Lottie Simple License and other paid offerings; the asset and creator rights must be checked before download, caching, modification, redistribution, or embedding.
+* **Rive** free plans support learning/design, while export and deployment rights can require paid plans. Rive runtime libraries and the editor's commercial/asset rights are separate concerns.
+* **GSAP** tools, including formerly premium plugins, are offered without charge under its Standard License. “Free” does not imply OSI-approved open source or unlimited redistribution of the library.
+* **Three.js** is MIT licensed, and **Lucide** SVG icons are ISC licensed, subject to attribution/notice obligations.
+* **React Bits** distributes its component library under the MIT License; nevertheless, inspect exact dependencies and any individual asset licenses.
+
+For a later production bridge, classify candidates into `video`, `motion`, `motion-assets`, `interactive-motion`, `3d`, `icons` and `components`. The separate MAF license-evidence and Cockpit execution policy gates must approve actual installation and rendering. Browser QA must cover reduced-motion preferences, frame performance, keyboard accessibility, font/embed licensing and deterministic render evidence. Publishing a video requires additional review of its input assets and codec conditions.
 
 ## Reference intake and review
 
@@ -142,4 +179,4 @@ pytest -q tests/test_design_discovery.py
 pytest -q
 ```
 
-Acceptance covers 28-source catalog and migration from the exact legacy 10-source or 18-source fingerprint, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
+Acceptance covers 36-source catalog and migration from exact legacy 10-, 18-, or 28-source fingerprints, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
