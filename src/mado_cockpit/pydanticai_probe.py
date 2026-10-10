@@ -201,6 +201,7 @@ def run_local_provider_probe(
     # Memory comes from replay fixture. No Graphiti/knowledge backend ran.
     data["runs"][1] = candidate_run
     compatibility = run_compatibility_fixture(data, root=root)
+    usage_value = result.usage() if callable(result.usage) else result.usage
     report = {
         "schema": PROBE_REPORT_SCHEMA,
         "mission_id": mission_id,
@@ -216,7 +217,7 @@ def run_local_provider_probe(
             "observed_tool_count": len(attempted),
             "admitted_tool_count": len(admitted),
             "registered_tool_names": tool_names,
-            "model_requests": result.usage().requests,
+            "model_requests": usage_value.requests,
             "structured_output_valid": True,
         },
         "compatibility": compatibility,
