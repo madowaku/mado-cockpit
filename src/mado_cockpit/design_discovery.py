@@ -44,7 +44,7 @@ SOURCES = (
     ("kobra-systems", "kobra.systems", "agent-ui", "AI agent interface and standard UI components", "agents reasoning diff chat approvals react"),
     ("bencho", "bencho.dev", "interactions", "Interactive React components and microinteractions", "react drag hover press interactions"),
     ("hyperiux-vault", "vault.hyperiux.com", "effects", "Source-first effects for React and Next.js", "react nextjs gsap webgl scroll effects"),
-    ("libraries-dev", "libraries.dev", "discovery", "Curated UI libraries for AI agents", "ui library agents directory"),
+    ("libraries-dev", "libraries.dev", "components", "Agent-ready React visual effects libraries", "react agents effects prompts npm mit"),
     ("beui", "beui.dev", "components", "Animated React and Next.js components", "react nextjs tailwind motion shadcn"),
     ("beautifului", "beautifului.dev", "agent-ui", "AI-native interface primitives", "agents approval streaming tool calls chat"),
     ("ui-maxxing", "uimaxx.ing", "discovery", "Design component resource link, pending site verification", "ui design components unverified"),
