@@ -1,0 +1,25 @@
+{
+  "schema": "mado.motion-brief.v1",
+  "title": "MADO Cockpit Reveal",
+  "format": "landscape",
+  "background": "#0b1020",
+  "foreground": "#f8fafc",
+  "accent": "#5be9c4",
+  "scenes": [
+    {
+      "heading": "Ideas deserve to ship",
+      "body": "From mission to visible output, keep every step reviewable.",
+      "duration_frames": 90
+    },
+    {
+      "heading": "Production, with evidence",
+      "body": "Build, verify, and improve with MADO Cockpit.",
+      "duration_frames": 90
+    },
+    {
+      "heading": "Make it real",
+      "body": "Your next creative launch starts here.",
+      "duration_frames": 60
+    }
+  ]
+}
