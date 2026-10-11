@@ -18,7 +18,7 @@ from .store import CockpitStore
 SCHEMA = "mado.design-discovery.v1"
 # Historical catalog prefixes keep original records and human approvals usable.
 LEGACY_CATALOG_SIZE = 10  # retained as an API-compatible constant
-LEGACY_CATALOG_SIZES = (10, 18, 28)
+LEGACY_CATALOG_SIZES = (10, 18, 28, 36)
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -56,6 +56,12 @@ SOURCES = (
     ("threejs", "threejs.org", "3d", "JavaScript 3D graphics and WebGL rendering", "threejs webgl 3d graphics motion shaders"),
     ("lucide", "lucide.dev", "icons", "Consistent SVG icon system", "icons svg lucide react icon motion"),
     ("reactbits", "reactbits.dev", "components", "Animated React components and creative effects", "react components animated backgrounds motion"),
+    ("toolcraft", "toolcraft.sh", "components", "Design-engineering UI component reference (availability unverified)", "design react components tools unverified"),
+    ("pinui", "pinui.xyz", "components", "UI component and design resource reference (availability unverified)", "ui components design unverified"),
+    ("solace-ui", "solaceui.com", "components", "Solace UI component reference (availability unverified)", "ui components design unverified"),
+    ("easyui", "easyui.site", "components", "UI component collection and interface patterns", "ui components animated responsive"),
+    ("pace-ui", "paceui.com", "components", "UI component reference (availability unverified)", "ui components design unverified"),
+    ("feral-ui", "feralui.dev", "components", "UI component reference (availability unverified)", "ui components design unverified"),
 )
 CATALOG = tuple(
     {
