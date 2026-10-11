@@ -42,7 +42,7 @@ def test_plan_outputs_remotion_project_and_codex_context(tmp_path):
     assert (result["width"], result["height"]) == (1280, 720)
     assert result["render_state"] == "not_rendered"
     assert worker.verify(folder)["files_checked"] == 8
-    assert (folder / "src/index.ts").read_text().count("registerRoot") == 1
+    assert (folder / "src/index.ts").read_text().count("registerRoot(Root)") == 1
     assert 'id="MadoMotion"' in (folder / "src/Root.tsx").read_text()
     pkg = json.loads((folder / "package.json").read_text())
     assert pkg["dependencies"]["remotion"] == pkg["devDependencies"]["@remotion/cli"]
