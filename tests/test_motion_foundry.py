@@ -160,3 +160,35 @@ def test_cli_plan_and_verify(tmp_path, capsys):
     result = json.loads(capsys.readouterr().out)
     assert main(["--root", str(tmp_path), "verify", result["path"]]) == 0
     assert "source_verified" in capsys.readouterr().out
+
+
+
+def test_explicit_render_records_unreviewed_receipt_and_detects_video_tampering(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import mado_cockpit.motion_foundry as module
+
+    worker, _ = foundry(tmp_path)
+    folder = Path(worker.plan(brief())["path"])
+    executable = folder / "node_modules" / ".bin" / "remotion"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("local placeholder binary", encoding="utf-8")
+
+    def render_stub(argv, **kwargs):
+        assert argv[1:4] == ["render", "src/index.ts", "MadoMotion"]
+        assert kwargs["cwd"] == folder
+        assert kwargs["stdin"] == module.subprocess.DEVNULL
+        (folder / "out" / "motion.mp4").write_bytes(b"\x00\x00\x00\x18ftypisom" + b"A" * 200)
+        return SimpleNamespace(returncode=0, stdout="render succeeded", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", render_stub)
+    receipt = worker.render(folder, allow_execute=True, license_attested=True)
+    assert receipt["status"] == "rendered_unreviewed"
+    assert receipt["visual_review"] == "pending"
+    assert receipt["size_bytes"] > 100
+    assert worker.verify(folder)["render_state"] == "rendered_unreviewed"
+    assert (folder / "render.log").read_text().startswith("render succeeded")
+    with pytest.raises(MotionFoundryError, match="Render output/evidence exists"):
+        worker.render(folder, allow_execute=True, license_attested=True)
+    (folder / "out" / "motion.mp4").write_bytes(b"\x00\x00\x00\x18ftypisom" + b"B" * 200)
+    with pytest.raises(MotionFoundryError, match="digest mismatch"):
+        worker.verify(folder)
