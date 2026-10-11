@@ -901,3 +901,18 @@ python -m mado_cockpit.motion_foundry --root . verify .mado/cockpit/motion_found
 ~~~
 
 The generated project can be previewed locally with Remotion after manual dependency installation. Rendering requires `--execute --license-attested`, and any MP4 remains `rendered_unreviewed` until human visual QA. See [MCC-M2.6.3 Motion Foundry](docs/MCC-M2.6.3_MOTION_FOUNDRY.md) for requirements, command flow, licensing and tests.
+
+
+### MCC-M2.6.4 Component Selection / License Gate / Visual QA
+
+The 42-resource Design Discovery Hub now feeds a human-reviewed UI component workflow. Only explicitly approved reference links can be shortlisted and nominated. A local, content-hashed license document and explicit human scope attestation gate Codex task generation. The stdlib-only PNG comparator emits changed-pixel metrics and transparent/magenta delta images; any visual QA pass remains pending until a separate human review.
+
+~~~bash
+python -m mado_cockpit.component_foundry shortlist --query "agent button"
+# After selecting a reviewed dref_<id>:
+python -m mado_cockpit.component_foundry nominate dref_<id> --component "ApproveButton" --goal "Agent action confirmation" --usage prototype
+# Place applicable license text in the printed selection folder's evidence/ directory before running license
+python -m mado_cockpit.component_foundry status component_<digest>
+~~~
+
+No network calls, third-party code installation, browser capture or autonomous Codex execution occur here. For the complete selection/license/task/QA/review commands and trust boundaries, see [MCC-M2.6.4 Component Selection / License / Visual QA](docs/MCC-M2.6.4_COMPONENT_SELECTION_LICENSE_VISUAL_QA.md).
