@@ -284,10 +284,24 @@ class MotionFoundry:
         expected = _sha(_canonical({"brief": normalized, "files": manifest["files"]}))
         if manifest["project_id"] != "motion_" + expected[:16]:
             raise MotionFoundryError("Project identity mismatch")
+        receipt_path = folder / "render-evidence.json"
+        render_state = "not_rendered"
+        if receipt_path.exists():
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if receipt.get("schema") != RENDER_SCHEMA or receipt.get("project_id") != manifest["project_id"]:
+                raise MotionFoundryError("Render evidence does not match project")
+            render_state = receipt.get("status")
+            if render_state not in {"failed", "rendered_unreviewed"}:
+                raise MotionFoundryError("Unsupported render evidence status")
+            if render_state == "rendered_unreviewed":
+                video = folder / "out" / "motion.mp4"
+                if not video.is_file() or video.stat().st_size != receipt.get("size_bytes"):
+                    raise MotionFoundryError("Rendered video is missing or size changed")
+                if _sha(video.read_bytes()) != receipt.get("sha256"):
+                    raise MotionFoundryError("Rendered video digest mismatch")
         return {"status": "source_verified", "project_id": manifest["project_id"],
-                "files_checked": len(SAFE_FILES), "render_state": "not_rendered",
-                "render_evidence": str(folder / "render-evidence.json")
-                if (folder / "render-evidence.json").exists() else None}
+                "files_checked": len(SAFE_FILES), "render_state": render_state,
+                "render_evidence": str(receipt_path) if receipt_path.exists() else None}
 
     def render(self, path: Path | str, *, allow_execute: bool, license_attested: bool,
                timeout: int = 600) -> dict[str, Any]:
