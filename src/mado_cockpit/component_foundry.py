@@ -394,6 +394,8 @@ class ComponentFoundry:
            *, max_changed_fraction: float = 0.0, max_mae: float = 0.0) -> dict[str, Any]:
         folder, selection, selection_digest = self._selection(selection_id)
         _, license_digest = self._license(folder, selection_digest, selection["usage"])
+        if baseline == actual:
+            raise ComponentGateError("Baseline and actual must be distinct screenshot files")
         if (isinstance(max_changed_fraction, bool) or not isinstance(max_changed_fraction, (int, float))
                 or not 0 <= max_changed_fraction <= 1
                 or isinstance(max_mae, bool) or not isinstance(max_mae, (int, float))
@@ -485,7 +487,12 @@ class ComponentFoundry:
                 review = folder / "qa" / f"{qa_id}-review.json"
                 if review.exists():
                     r = _check_record(_read(review))
-                    if r.get("qa_sha256") != qsha or r.get("license_sha256") != ldigest:
+                    if (r.get("schema") != REVIEW_SCHEMA
+                            or r.get("selection_id") != selection_id
+                            or r.get("qa_id") != qa_id
+                            or r.get("qa_sha256") != qsha
+                            or r.get("license_sha256") != ldigest
+                            or r.get("decision") not in ("approve", "reject")):
                         raise ComponentGateError("Human review no longer matches QA")
                     decision = r["decision"]
                 result["visual_qa"].append({"qa_id": qa_id, "machine": qa["status"], "review": decision})
