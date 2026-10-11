@@ -269,6 +269,10 @@ def test_unsafe_path_rejected_without_reading_outside_files(tmp_path):
         foundry.license(selected["selection_id"], evidence_file="../../secrets.txt",
                         license_id="MIT", reviewer="human:owner", note="Should not read secrets",
                         commercial_use=True, modification=True, redistribution=True)
+    foundry.license(selected["selection_id"], evidence_file="license.txt",
+                    license_id="MIT", reviewer="human:owner",
+                    note="Reviewed for prototype-only UI work",
+                    commercial_use=False, modification=False, redistribution=False)
     with pytest.raises(ComponentGateError, match="filename"):
         foundry.qa(selected["selection_id"], "../a.png", "b.png")
 
