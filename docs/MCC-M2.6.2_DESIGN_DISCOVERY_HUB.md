@@ -4,7 +4,7 @@ This milestone creates a metadata-only, locally review-gated design reference re
 
 ## Initial source registry
 
-Thirty-six curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
+Forty-two curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
 
 | ID | Official source | Scope |
 |---|---|---|
@@ -44,6 +44,12 @@ Thirty-six curated reference sources are built into `mado_cockpit.design_discove
 | threejs | https://threejs.org/ | WebGL 3D animation and rendering; MIT library |
 | lucide | https://lucide.dev/ | SVG icon system; ISC icon license |
 | reactbits | https://reactbits.dev/ | Animated React components; MIT library |
+| toolcraft | https://toolcraft.sh/ | Design components; current site availability and licensing unverified |
+| pinui | https://pinui.xyz/ | UI library bookmark; current site availability and licensing unverified |
+| solace-ui | https://solaceui.com/ | UI components; current site availability and licensing unverified |
+| easyui | https://easyui.site/ | UI components and patterns; individual usage rights require review |
+| pace-ui | https://paceui.com/ | UI library bookmark; current site availability and licensing unverified |
+| feral-ui | https://feralui.dev/ | UI component bookmark; current site availability and licensing unverified |
 
 All entries initially declare `mode=manual_link_only` and `rights=unverified`. Listing a source implies no license grant, API compatibility, official relationship, or endorsement.
 
@@ -119,6 +125,19 @@ The upgrade recognizes only exact historical catalog fingerprints. It validates 
 
 For a later production bridge, classify candidates into `video`, `motion`, `motion-assets`, `interactive-motion`, `3d`, `icons` and `components`. The separate MAF license-evidence and Cockpit execution policy gates must approve actual installation and rendering. Browser QA must cover reduced-motion preferences, frame performance, keyboard accessibility, font/embed licensing and deterministic render evidence. Publishing a video requires additional review of its input assets and codec conditions.
 
+## Premium UI library expansion (MCC-M2.6.2d, 36 → 42)
+
+Add six user-curated bookmarks: Toolcraft, PinUI, Solace UI, EasyUI, Pace UI and Feral UI. This is **metadata-only**: no account connection, npm installation, source-code import, third-party script execution, crawling or component copying.
+
+```sh
+python -m mado_cockpit.design_discovery --root . bootstrap
+python -m mado_cockpit.design_discovery --root . sources --query components
+```
+
+Previously initialized catalogs with exact, known 10-, 18-, 28-, or 36-source fingerprints upgrade to 42 entries without deleting accepted, pending or rejected references or the audit ledger. Existing digest and historical membership checks run before migration. Unknown catalog fingerprints and tampering remain fail-closed.
+
+All six sources retain `rights=unverified` and `mode=manual_link_only`. Availability, specific libraries, licensing and paid/free tiers must be checked again **at the exact component/page level** before code reuse, copying animations or distribution. An approved reference link is only approval for research, not import into the Cockpit or downstream projects.
+
 ## Reference intake and review
 
 Add a human-selected page URL:
@@ -179,4 +198,4 @@ pytest -q tests/test_design_discovery.py
 pytest -q
 ```
 
-Acceptance covers 36-source catalog and migration from exact legacy 10-, 18-, or 28-source fingerprints, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
+Acceptance covers 42-source catalog and migration from exact legacy 10-, 18-, 28-, or 36-source fingerprints, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
