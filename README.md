@@ -887,3 +887,17 @@ python -m mado_cockpit.design_discovery --root . pack --query ios --output desig
 ```
 
 Requires an initialized Cockpit. If upgrading an existing 10-, 18-, or 28-source registry, rerun `bootstrap` to preserve approvals, rejections and review history while migrating the catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
+
+
+### MCC-M2.6.3 Motion Foundry / Codex Video Production Bridge
+
+Deterministic local storyboard -> Remotion React/TypeScript project -> Codex task contract -> source-integrity evidence. Uses approved Design Discovery links as untrusted reference metadata. Does not install npm packages, download media, invoke Codex, or render without explicit operator approval and a license attestation.
+
+~~~bash
+python -m mado_cockpit.design_discovery --root . bootstrap
+python -m mado_cockpit.motion_foundry --root . plan fixtures/motion/mcc-m2.6.3-launch-brief.json
+# Verify with the project path returned by plan:
+python -m mado_cockpit.motion_foundry --root . verify .mado/cockpit/motion_foundry/motion_<digest>
+~~~
+
+The generated project can be previewed locally with Remotion after manual dependency installation. Rendering requires `--execute --license-attested`, and any MP4 remains `rendered_unreviewed` until human visual QA. See [MCC-M2.6.3 Motion Foundry](docs/MCC-M2.6.3_MOTION_FOUNDRY.md) for requirements, command flow, licensing and tests.
