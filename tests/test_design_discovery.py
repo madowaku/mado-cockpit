@@ -16,9 +16,9 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
     return result
 
 
-def test_thirty_six_sources_and_no_automatic_fetch(tmp_path):
+def test_forty_two_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 36
+    assert len(CATALOG) == 42
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
@@ -201,7 +201,7 @@ def test_annnimate_source_points_to_user_requested_animation_index(tmp_path):
     assert entry["url"] == "https://annnimate.com/animations"
 
 
-@pytest.mark.parametrize("legacy_size", [10, 18, 28])
+@pytest.mark.parametrize("legacy_size", [10, 18, 28, 36])
 def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_size):
     item = hub(tmp_path)
     old_source = "paper" if legacy_size == 18 else "evilbuttons"
@@ -226,7 +226,7 @@ def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_si
               if event["type"] == "design.discovery.catalog_upgraded"]
     assert len(events) == 1
     assert events[0]["subject"]["from_source_count"] == legacy_size
-    assert events[0]["subject"]["to_source_count"] == 36
+    assert events[0]["subject"]["to_source_count"] == 42
 
 
 def test_legacy_fingerprint_cannot_claim_future_sources(tmp_path):
@@ -321,3 +321,60 @@ def test_motion_source_domain_spoof_is_rejected(tmp_path):
     with pytest.raises(DiscoveryError, match="URL domain"):
         item.add("remotion", "Spoof", "https://remotion.dev.evil.example/",
                  note="Do not accept domain lookalikes")
+
+
+@pytest.mark.parametrize("source_id,host", [
+    ("toolcraft", "toolcraft.sh"),
+    ("pinui", "pinui.xyz"),
+    ("solace-ui", "solaceui.com"),
+    ("easyui", "easyui.site"),
+    ("pace-ui", "paceui.com"),
+    ("feral-ui", "feralui.dev"),
+])
+def test_premium_ui_links_are_discoverable_without_auto_install(tmp_path, source_id, host):
+    item = hub(tmp_path)
+    source = next(source for source in item.sources() if source["id"] == source_id)
+    assert source["host"] == host
+    assert source["category"] == "components"
+    assert source["mode"] == "manual_link_only"
+    assert source["rights"] == "unverified"
+    record = item.add(source_id, "Design component reference", f"https://{host}/",
+                      note="Bookmark only; inspect license before reusing anything")
+    assert record["status"] == "pending"
+    assert not item.context_pack()["approved_references"]
+
+
+def test_36_to_42_retains_existing_reviewed_links(tmp_path):
+    item = hub(tmp_path)
+    ref = item.add("remotion", "Prior approved source", "https://remotion.dev/",
+                   note="Source approved before new component bookmarks")
+    item.review(ref["id"], decision="approve", actor="human:owner",
+                note="Reviewed URL only, not a code download")
+    before = item.references()
+    ledger = item.audit.read_bytes()
+    data = json.loads(item.path.read_text(encoding="utf-8"))
+    data["source_catalog_sha256"] = _digest({"sources": CATALOG[:36]})
+    item.path.write_text(json.dumps(data), encoding="utf-8")
+    assert item.bootstrap()["status"] == "upgraded"
+    assert item.bootstrap()["status"] == "existing"
+    assert item.references() == before
+    assert item.audit.read_bytes() == ledger
+    assert [r["id"] for r in item.context_pack()["approved_references"]] == [ref["id"]]
+
+
+def test_old_36_catalog_cannot_claim_new_42_source(tmp_path):
+    item = hub(tmp_path)
+    item.add("toolcraft", "Future source", "https://toolcraft.sh/",
+             note="Must not appear in historical registry")
+    data = json.loads(item.path.read_text(encoding="utf-8"))
+    data["source_catalog_sha256"] = _digest({"sources": CATALOG[:36]})
+    item.path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(DiscoveryError, match="predates catalog version"):
+        item.bootstrap()
+
+
+def test_new_site_spoofed_hostname_rejected(tmp_path):
+    item = hub(tmp_path)
+    with pytest.raises(DiscoveryError, match="URL domain"):
+        item.add("pinui", "Spoof", "https://pinui.xyz.bad.test/",
+                 note="Only the configured source domain is allowed")
