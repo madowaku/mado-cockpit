@@ -298,3 +298,29 @@ def test_cli_shortlist_and_nominate(tmp_path, capsys):
     result = json.loads(capsys.readouterr().out)
     assert main(["--root", str(tmp_path), "status", result["selection_id"]]) == 0
     assert json.loads(capsys.readouterr().out)["license"] == "missing"
+
+
+
+def test_cannot_compare_one_screenshot_with_itself(tmp_path):
+    foundry, _, selected, folder = setup_selection(tmp_path)
+    (folder / "screenshots" / "same.png").write_bytes(png(1, 1, bytes((1, 2, 3, 255))))
+    with pytest.raises(ComponentGateError, match="distinct screenshot"):
+        foundry.qa(selected["selection_id"], "same.png", "same.png")
+
+
+def test_review_record_provenance_mismatch_is_rejected(tmp_path):
+    foundry, _, selected, folder = setup_selection(tmp_path)
+    blob = png(1, 1, bytes((12, 23, 34, 255)))
+    (folder / "screenshots" / "before.png").write_bytes(blob)
+    (folder / "screenshots" / "after.png").write_bytes(blob)
+    qa = foundry.qa(selected["selection_id"], "before.png", "after.png")
+    foundry.review(selected["selection_id"], qa["qa_id"], actor="human:owner",
+                   note="Reviewed actual matched screenshots", decision="approve")
+    path = folder / "qa" / f"{qa['qa_id']}-review.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["data"]["selection_id"] = "component_" + "0" * 16
+    from mado_cockpit.component_foundry import _sha, _canonical
+    record["sha256"] = _sha(_canonical(record["data"]))
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(ComponentGateError, match="Human review no longer matches"):
+        foundry.status(selected["selection_id"])
