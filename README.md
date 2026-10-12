@@ -874,7 +874,7 @@ See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
 
 ### MCC-M2.6.2 Design Discovery Hub
 
-Metadata-only design reference registry for Designeer and 41 other curated design-engineering sources (42 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
+Metadata-only design reference registry for Designeer and 42 other curated design-engineering sources (43 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
 
 ```bash
 python -m mado_cockpit.design_discovery --root . bootstrap
@@ -886,7 +886,7 @@ python -m mado_cockpit.design_discovery --root . sources --query video
 python -m mado_cockpit.design_discovery --root . pack --query ios --output design-context.json
 ```
 
-Requires an initialized Cockpit. If upgrading an existing 10-, 18-, 28-, or 36-source registry, rerun `bootstrap` to preserve approvals, rejections and review history while migrating the catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
+Requires an initialized Cockpit. If upgrading an existing 10-, 18-, 28-, 36-, or 42-source registry, rerun `bootstrap` to preserve approvals, rejections and review history while migrating the catalog fingerprint. See [MCC-M2.6.2 Design Discovery Hub](docs/MCC-M2.6.2_DESIGN_DISCOVERY_HUB.md) for approval workflow, source restrictions, rights boundaries and test coverage.
 
 
 ### MCC-M2.6.3 Motion Foundry / Codex Video Production Bridge
