@@ -18,7 +18,7 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
 
 def test_forty_two_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 42
+    assert len(CATALOG) == 43
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
@@ -226,7 +226,7 @@ def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_si
               if event["type"] == "design.discovery.catalog_upgraded"]
     assert len(events) == 1
     assert events[0]["subject"]["from_source_count"] == legacy_size
-    assert events[0]["subject"]["to_source_count"] == 42
+    assert events[0]["subject"]["to_source_count"] == 43
 
 
 def test_legacy_fingerprint_cannot_claim_future_sources(tmp_path):
@@ -378,3 +378,55 @@ def test_new_site_spoofed_hostname_rejected(tmp_path):
     with pytest.raises(DiscoveryError, match="URL domain"):
         item.add("pinui", "Spoof", "https://pinui.xyz.bad.test/",
                  note="Only the configured source domain is allowed")
+
+
+def test_takayu_motion_reference_link_is_unverified_and_review_gated(tmp_path):
+    item = hub(tmp_path)
+    source = next(s for s in item.sources() if s["id"] == "takayu-motion-reference")
+    assert source["url"] == "https://motion-reference.takayustudio.jp/"
+    assert source["category"] == "motion"
+    assert source["mode"] == "manual_link_only"
+    assert source["rights"] == "unverified"
+    assert "verification" in source["description"]
+    entry = item.add("takayu-motion-reference", "Motion inspiration",
+                     "https://motion-reference.takayustudio.jp/",
+                     note="Unverified third-party motion reference; bookmark only")
+    assert entry["status"] == "pending"
+    assert item.context_pack("motion")["approved_references"] == []
+
+
+def test_migrate_42_source_registry_preserving_reviews(tmp_path):
+    item = hub(tmp_path)
+    approved = item.add("reactbits", "Historic reference", "https://reactbits.dev/",
+                        note="Reviewed motion component reference")
+    item.review(approved["id"], decision="approve", actor="human:owner",
+                note="Reference-only approval before catalog expanded")
+    before = item.references()
+    ledger = item.audit.read_bytes()
+    raw = json.loads(item.path.read_text(encoding="utf-8"))
+    raw["source_catalog_sha256"] = _digest({"sources": CATALOG[:42]})
+    item.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert item.bootstrap()["status"] == "upgraded"
+    assert item.bootstrap()["status"] == "existing"
+    assert item.references() == before
+    assert item.audit.read_bytes() == ledger
+    assert [ref["id"] for ref in item.context_pack()["approved_references"]] == [approved["id"]]
+
+
+def test_migration_rejects_new_motion_reference_claimed_by_42_catalog(tmp_path):
+    item = hub(tmp_path)
+    item.add("takayu-motion-reference", "New source", "https://motion-reference.takayustudio.jp/",
+             note="Impossible reference in prior catalog")
+    data = json.loads(item.path.read_text(encoding="utf-8"))
+    data["source_catalog_sha256"] = _digest({"sources": CATALOG[:42]})
+    item.path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(DiscoveryError, match="predates catalog version"):
+        item.bootstrap()
+
+
+def test_takayu_motion_reference_domain_spoof_blocked(tmp_path):
+    item = hub(tmp_path)
+    with pytest.raises(DiscoveryError, match="URL domain"):
+        item.add("takayu-motion-reference", "Spoof",
+                 "https://motion-reference.takayustudio.jp.attacker.example/",
+                 note="Only configured hostname or valid subdomains allowed")
