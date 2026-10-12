@@ -4,7 +4,7 @@ This milestone creates a metadata-only, locally review-gated design reference re
 
 ## Initial source registry
 
-Forty-two curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
+Forty-three curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
 
 | ID | Official source | Scope |
 |---|---|---|
@@ -50,6 +50,7 @@ Forty-two curated reference sources are built into `mado_cockpit.design_discover
 | easyui | https://easyui.site/ | UI components and patterns; individual usage rights require review |
 | pace-ui | https://paceui.com/ | UI library bookmark; current site availability and licensing unverified |
 | feral-ui | https://feralui.dev/ | UI component bookmark; current site availability and licensing unverified |
+| takayu-motion-reference | https://motion-reference.takayustudio.jp/ | User-supplied motion reference bookmark; availability, content, and rights not independently verified |
 
 All entries initially declare `mode=manual_link_only` and `rights=unverified`. Listing a source implies no license grant, API compatibility, official relationship, or endorsement.
 
@@ -199,3 +200,8 @@ pytest -q
 ```
 
 Acceptance covers 42-source catalog and migration from exact legacy 10-, 18-, 28-, or 36-source fingerprints, no automatic download, allowlisted domain checks, immutable reference identity, explicit human review, pending/rejected exclusion, digest tamper detection, rights-evidence requirement, Cockpit event logging and CLI context-pack export.
+
+
+## Takayu Motion Reference bookmark (42 → 43)
+
+The user-provided https://motion-reference.takayustudio.jp/ URL is included as a metadata-only motion inspiration source. The website could not be reached from the research environment, so no claims about its catalog, ownership, download terms, license, APIs, or example animations are made. Reference link intake remains human-reviewed; code/animation copying and scraping are not enabled. Running `design_discovery bootstrap` upgrades exact historical 42-source registries without altering existing review decisions or their audit ledger. The new site remains unverified until a human confirms its content and terms.
