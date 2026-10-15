@@ -942,3 +942,20 @@ python -m mado_cockpit.design_intelligence_lab --root . plan fixtures/design_int
 ```
 
 The fixed-brief plan creates data-only Codex tasks. No Skill, MCP, CLI, external source code, npm install or browser is invoked. Human screenshot evidence can later be submitted with `record` and compared with `compare`; no comparison claims actual visual quality or production release without external evidence and the pre-existing Component Foundry gates. See [Design Intelligence / UI Skill Compatibility Lab](docs/MCC-M2.6.2E_DESIGN_INTELLIGENCE_UI_SKILL_LAB.md).
+
+
+### MCC-M2.6.2f UI Design Bake-off / Screenshot Evidence Bridge
+
+An **opt-in local Chromium/Playwright capture** turns externally built UI candidates into real browser screenshot evidence at fixed light, dark and mobile viewports. Every image is hashed and bound to its experiment plan, source-file hash, candidate revision and capture settings; the bridge blocks external browser HTTP requests and preserves a separate human review gate. It also generates immutable contact-sheet PNGs and annotates the existing Design Intelligence comparison.
+
+```bash
+# Plan is created by MCC-M2.6.2e.
+python -m mado_cockpit.design_bakeoff --root . capture exp_<digest> design-taste \
+  --url http://127.0.0.1:8765/ --source-file path/to/trusted/index.html \
+  --browser-channel chrome
+python -m mado_cockpit.design_bakeoff --root . verify exp_<digest> design-taste
+python -m mado_cockpit.design_bakeoff --root . sheet exp_<digest> --state light
+python -m mado_cockpit.design_bakeoff --root . compare exp_<digest>
+```
+
+No Playwright dependency is required for the main package or unit test suite; browser installation and page execution require an explicit operator action. A dedicated GitHub Actions job captures a **local authored fixture**, verifies genuine screenshots and uploads its PNG evidence. That fixture is **not** output from Superdesign, Better Design or Design Taste; it is permanently labelled `fixture_smoke` and cannot be scored as a design agent result. External providers are not invoked and production release stays blocked. See [UI Design Bake-off / Screenshot Evidence Bridge](docs/MCC-M2.6.2F_UI_DESIGN_BAKEOFF_SCREENSHOT_EVIDENCE.md).
