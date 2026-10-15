@@ -18,7 +18,7 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
 
 def test_current_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 44
+    assert len(CATALOG) == 53
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
