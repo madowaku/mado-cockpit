@@ -18,7 +18,7 @@ from .store import CockpitStore
 SCHEMA = "mado.design-discovery.v1"
 # Historical catalog prefixes keep original records and human approvals usable.
 LEGACY_CATALOG_SIZE = 10  # retained as an API-compatible constant
-LEGACY_CATALOG_SIZES = (10, 18, 28, 36, 42, 43)
+LEGACY_CATALOG_SIZES = (10, 18, 28, 36, 42, 43, 44)
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -64,6 +64,15 @@ SOURCES = (
     ("feral-ui", "feralui.dev", "components", "UI component reference (availability unverified)", "ui components design unverified"),
     ("takayu-motion-reference", "motion-reference.takayustudio.jp", "motion", "User-provided motion reference site; content and rights pending verification", "motion reference animation inspiration takayu unverified"),
     ("lucian-uxui", "lucianlabs.dev", "components", "200 MIT-licensed interactive UI examples and agent porting catalog; verify each element", "lucian uxui ui components agent prompt codex accessibility react"),
+    ("superdesign-skill", "superdesign.dev", "agent-ui", "Hosted canvas design agent skill; remote CLI and permissions require independent approval", "superdesign ux agent skill cloud cli remote paid unverified"),
+    ("better-design", "better-design.com", "design-system", "MCP design principles and UI registry; connecting server requires approval", "better design mcp tokens react accessibility agent remote"),
+    ("design-taste", "github.com", "design-system", "Instruction-only local UX/UI design taste skills; review text as untrusted", "design taste agent skill styling accessibility"),
+    ("canvas-ui", "canvasui.dev", "effects", "WebGL and WebGPU components under MIT plus Commons Clause restrictions", "canvas ui webgpu webgl commons clause effects"),
+    ("paper-shaders", "shaders.paper.design", "effects", "Apache-2.0 canvas shaders with package and NOTICE requirements", "paper shaders react canvas apache webgl"),
+    ("ui-layouts", "ui-layouts.com", "components", "React motion components and layout patterns; separate framework dependencies", "ui layouts react animation motion components"),
+    ("motion-primitives", "motion-primitives.com", "components", "MIT React motion components; requires runtime dependency review", "motion primitives react tailwind components"),
+    ("cursify", "cursify.vercel.app", "effects", "Cursor effect library; repository license not confirmed", "cursor cursify react motion license unverified"),
+    ("trickle-ui-kit", "github.com", "components", "CSS animation components for React; demo media rights separate", "trickle text animation css react ssr"),
 )
 CATALOG = tuple(
     {
