@@ -4,7 +4,7 @@ This milestone creates a metadata-only, locally review-gated design reference re
 
 ## Initial source registry
 
-Forty-three curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
+Fifty-three curated reference sources are built into `mado_cockpit.design_discovery.CATALOG`:
 
 | ID | Official source | Scope |
 |---|---|---|
