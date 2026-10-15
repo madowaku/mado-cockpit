@@ -217,7 +217,8 @@ class ScreenshotEvidenceBridge:
                 source_file: Path, provenance: str = "operator_supplied_build",
                 browser_channel: str | None = None,
                 browser_executable: str | None = None,
-                timeout_ms: int = 15000, ready_selector: str | None = None) -> dict[str, Any]:
+                timeout_ms: int = 15000, ready_selector: str | None = None,
+                expected_served_html_sha256: str | None = None) -> dict[str, Any]:
         folder, plan, digest = self._folder(experiment, candidate)
         url, origin = _loopback_url(url)
         if provenance not in {"fixture_smoke", "operator_supplied_build"}:
@@ -249,6 +250,11 @@ class ScreenshotEvidenceBridge:
                 url=url, origin=origin, viewport=tuple(plan["brief"]["viewport"]),
                 browser_channel=browser_channel, browser_executable=browser_executable,
                 timeout_ms=timeout_ms, ready_selector=ready_selector, staging=staged)
+            # Optional stronger origin binding for the g-stage static build capture.
+            # Fail before writing *any* screenshot or receipt on a source mismatch.
+            if (expected_served_html_sha256 is not None
+                    and runtime.get("served_html_sha256") != expected_served_html_sha256):
+                raise BakeoffError("Served HTML differs from the approved build entrypoint")
             dimensions = [tuple(plan["brief"]["viewport"]),
                           tuple(plan["brief"]["viewport"]), MOBILE]
             images = []
