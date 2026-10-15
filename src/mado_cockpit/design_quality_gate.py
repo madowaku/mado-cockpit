@@ -244,6 +244,7 @@ class RealUIDecisionGate:
                 source_file=entrypoint, provenance=provenance,
                 browser_channel=browser_channel, browser_executable=browser_executable,
                 timeout_ms=timeout_ms, ready_selector="body",
+                expected_served_html_sha256=run["build"]["entrypoint_sha256"],
             )
             verified = self.bridge.verify(exp, candidate)
             if verified["runtime"].get("served_html_sha256") != run["build"]["entrypoint_sha256"]:
