@@ -152,6 +152,7 @@ def test_handoff_links_existing_verified_motion_foundry_without_modifying_it(tmp
     generated = json.loads(Path(task["path"]).read_text())
     assert generated["schema"] == "mado.motion-prompt-handoff.v1"
     assert generated["scene_duration_frames"] == 90
+    assert generated["target_brief_sha256"] == json.loads((folder / "manifest.json").read_text())["brief_sha256"]
     assert generated["license_notice"].startswith("Motion Prompt")
     assert generated["render_authorized"] is False
     assert generated["visual_review"] == "pending"
