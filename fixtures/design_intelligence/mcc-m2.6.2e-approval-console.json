@@ -1,0 +1,19 @@
+{
+  "schema": "mado.ui-compatibility-brief.v1",
+  "title": "MADO Cockpit Approval Console",
+  "audience": "Operators reviewing AI-generated asset and UI changes",
+  "goal": "Build a restrained, responsive approval screen that makes source provenance, change details, and human authorization understandable without changing backend permissions.",
+  "framework": "react",
+  "theme": "Respect existing MADO tokens, dark and light themes, no brand replacement",
+  "viewport": [
+    1280,
+    800
+  ],
+  "acceptance": [
+    "Show a proposed component change with clear source and license state.",
+    "Expose a human approval action whose enabled state reflects an explicit validated permission.",
+    "Show a readable diff summary and evidence links, with keyboard focus.",
+    "Retain sensible responsive layout and reduced-motion alternatives.",
+    "Do not auto-approve or perform real write actions in this isolated benchmark."
+  ]
+}
