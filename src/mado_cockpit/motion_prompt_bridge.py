@@ -140,7 +140,8 @@ def validate_catalog(payload: Any) -> dict[str, Any]:
         tags = item.get("tags")
         if not isinstance(tags, list) or not 1 <= len(tags) <= 24:
             raise MotionPromptError("Invalid tags")
-        if any(not isinstance(tag, str) or not _SLUG.fullmatch(tag) for tag in tags):
+        if any(not isinstance(tag, str) or not tag.strip() or len(tag) > 80
+               or any(ord(ch) < 32 for ch in tag) for tag in tags):
             raise MotionPromptError("Invalid tag")
         clean_elements.append({
             "source_id": SOURCE_ID, "id": item["id"], "pack": pack["pack"],
@@ -216,18 +217,6 @@ class MotionPromptBridge:
                 or not isinstance(wrapper["sha256"], str) or not _SHA.fullmatch(wrapper["sha256"])
                 or _sha(_json(data)) != wrapper["sha256"]):
             raise MotionPromptError("Snapshot integrity mismatch")
-        # Check the stored normalized model as well as its digest, including generated URLs.
-        reconstructed = {
-            "site": UPSTREAM_SITE, "repo": UPSTREAM_REPO, "version": data.get("version"),
-            "count": data.get("count"), "packs": [
-                {**p, "categories": [{"slug": slug} for slug in p["categories"]]}
-                for p in data.get("packs", [])
-            ],
-            "elements": [{**e, "no": f"{i + 1:02d}"} for p in data.get("packs", [])
-                         for i, e in enumerate(x for x in data.get("elements", []) if x["pack"] == p["pack"])],
-        }
-        # Stored snapshot data is not executable. Integrity + identity is sufficient,
-        # and a digest mismatch fails before any material is used.
         if data.get("source_id") != SOURCE_ID or data.get("upstream_repo") != UPSTREAM_REPO:
             raise MotionPromptError("Snapshot source identity mismatch")
         return data, wrapper["sha256"]
