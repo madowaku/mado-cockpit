@@ -874,7 +874,7 @@ See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
 
 ### MCC-M2.6.2 Design Discovery Hub
 
-Metadata-only design reference registry for Designeer and 42 other curated design-engineering sources (43 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
+Metadata-only design reference registry for Designeer and 52 other curated design-engineering sources (53 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
 
 ```bash
 python -m mado_cockpit.design_discovery --root . bootstrap
