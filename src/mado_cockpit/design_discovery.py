@@ -71,13 +71,18 @@ SOURCES = (
     ("paper-shaders", "shaders.paper.design", "effects", "Apache-2.0 canvas shaders with package and NOTICE requirements", "paper shaders react canvas apache webgl"),
     ("ui-layouts", "ui-layouts.com", "components", "React motion components and layout patterns; separate framework dependencies", "ui layouts react animation motion components"),
     ("motion-primitives", "motion-primitives.com", "components", "MIT React motion components; requires runtime dependency review", "motion primitives react tailwind components"),
-    ("cursify", "cursify.vercel.app", "effects", "Cursor effect library; repository license not confirmed", "cursor cursify react motion license unverified"),
+    ("cursify", "github.com", "effects", "Cursor effect library; repository license not confirmed", "cursor cursify react motion license unverified"),
     ("trickle-ui-kit", "github.com", "components", "CSS animation components for React; demo media rights separate", "trickle text animation css react ssr"),
 )
+SOURCE_URL_OVERRIDES = {
+    "design-taste": "https://github.com/madebymustafa/design-taste",
+    "cursify": "https://github.com/ui-layouts/cursify",
+    "trickle-ui-kit": "https://github.com/akaieuan/trickle-UI-kit",
+}
 CATALOG = tuple(
     {
         "id": ident,
-        "url": f"https://{host}/animations" if ident == "annnimate" else f"https://{host}/",
+        "url": SOURCE_URL_OVERRIDES.get(ident, f"https://{host}/animations" if ident == "annnimate" else f"https://{host}/"),
         "host": host,
         "category": category,
         "description": description,
