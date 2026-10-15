@@ -136,6 +136,7 @@ def _browser_capture(*, url: str, origin: str, viewport: tuple[int, int],
                 raise BakeoffError("Page issued blocked external requests or script errors; inspect local build")
 
             snapshots = []
+            dom_audits = []
             for state in CAPTURE_STATES:
                 if state == "light":
                     page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
@@ -152,6 +153,34 @@ def _browser_capture(*, url: str, origin: str, viewport: tuple[int, int],
                                 full_page=False, animations="disabled", caret="hide",
                                 timeout=timeout_ms)
                 snapshots.append({"state": state, "width": dims[0], "height": dims[1]})
+                audit = page.evaluate("""() => {
+                    const root = document.documentElement;
+                    const visible = (el) => {
+                        const rect = el.getBoundingClientRect();
+                        const style = getComputedStyle(el);
+                        return rect.width > 0 && rect.height > 0
+                            && style.visibility !== 'hidden' && style.display !== 'none';
+                    };
+                    const controls = Array.from(document.querySelectorAll(
+                        'button, a[href], input, select, textarea'));
+                    const active = controls.filter(el => !el.disabled && visible(el));
+                    const unnamed = active.filter(el => !(
+                        (el.getAttribute('aria-label') || '').trim()
+                        || (el.getAttribute('title') || '').trim()
+                        || (el.innerText || '').trim()
+                        || (el.labels && Array.from(el.labels).some(x => x.innerText.trim()))
+                    )).length;
+                    return {
+                        lang_present: !!(root.lang || '').trim(),
+                        main_count: document.querySelectorAll('main, [role="main"]').length,
+                        heading_count: document.querySelectorAll('h1').length,
+                        focusable_count: active.length,
+                        unnamed_controls: unnamed,
+                        horizontal_overflow_px: Math.max(0, root.scrollWidth - innerWidth),
+                        reduced_motion_active: matchMedia('(prefers-reduced-motion: reduce)').matches
+                    };
+                }""")
+                dom_audits.append({"state": state, **audit})
             if blocked or page_errors:
                 raise BakeoffError("Browser errors or external requests occurred while capturing states")
             result = {
@@ -163,6 +192,8 @@ def _browser_capture(*, url: str, origin: str, viewport: tuple[int, int],
                 "javascript_errors": len(page_errors),
                 "console_errors": len(console_errors),
                 "capture_states": snapshots,
+                "dom_audits": dom_audits,
+                "served_html_sha256": _sha(response.body()),
                 "captured_at": datetime.now(timezone.utc).isoformat(),
             }
             ctx.close()
@@ -186,7 +217,8 @@ class ScreenshotEvidenceBridge:
                 source_file: Path, provenance: str = "operator_supplied_build",
                 browser_channel: str | None = None,
                 browser_executable: str | None = None,
-                timeout_ms: int = 15000, ready_selector: str | None = None) -> dict[str, Any]:
+                timeout_ms: int = 15000, ready_selector: str | None = None,
+                expected_served_html_sha256: str | None = None) -> dict[str, Any]:
         folder, plan, digest = self._folder(experiment, candidate)
         url, origin = _loopback_url(url)
         if provenance not in {"fixture_smoke", "operator_supplied_build"}:
@@ -218,6 +250,11 @@ class ScreenshotEvidenceBridge:
                 url=url, origin=origin, viewport=tuple(plan["brief"]["viewport"]),
                 browser_channel=browser_channel, browser_executable=browser_executable,
                 timeout_ms=timeout_ms, ready_selector=ready_selector, staging=staged)
+            # Optional stronger origin binding for the g-stage static build capture.
+            # Fail before writing *any* screenshot or receipt on a source mismatch.
+            if (expected_served_html_sha256 is not None
+                    and runtime.get("served_html_sha256") != expected_served_html_sha256):
+                raise BakeoffError("Served HTML differs from the approved build entrypoint")
             dimensions = [tuple(plan["brief"]["viewport"]),
                           tuple(plan["brief"]["viewport"]), MOBILE]
             images = []

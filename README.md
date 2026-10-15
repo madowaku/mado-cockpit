@@ -959,3 +959,19 @@ python -m mado_cockpit.design_bakeoff --root . compare exp_<digest>
 ```
 
 No Playwright dependency is required for the main package or unit test suite; browser installation and page execution require an explicit operator action. A dedicated GitHub Actions job captures a **local authored fixture**, verifies genuine screenshots and uploads its PNG evidence. That fixture is **not** output from Superdesign, Better Design or Design Taste; it is permanently labelled `fixture_smoke` and cannot be scored as a design agent result. External providers are not invoked and production release stays blocked. See [UI Design Bake-off / Screenshot Evidence Bridge](docs/MCC-M2.6.2F_UI_DESIGN_BAKEOFF_SCREENSHOT_EVIDENCE.md).
+
+### MCC-M2.6.2g Real UI Bake-off / Design Quality Decision Gate
+
+`design_quality_gate` safely intakes completed **externally operated** UI design runs, records an immutable local build-file manifest and execution trace hash, and runs an opt-in Chromium screenshot capture from its own loopback static server. It verifies the served HTML SHA-256 against the pinned build, three-state DOM smoke checks, original 2f screenshot receipts, independent human assessment, reported cost and quality thresholds before offering a **non-authorizing** design preference.
+
+```bash
+python -m mado_cockpit.design_quality_gate intake exp_<digest> design-taste \
+  --declaration path/to/run.json --bundle path/to/dist --trace path/to/redacted-trace.txt
+python -m mado_cockpit.design_quality_gate capture-local exp_<digest> design-taste --browser-channel chrome
+python -m mado_cockpit.design_quality_gate report exp_<digest>
+python -m mado_cockpit.design_quality_gate seal exp_<digest>
+```
+
+No external agent, model, MCP, npm, build tool or billable service runs automatically. The operator supplies real build outputs and runs any provider separately. The Decision Gate holds when runs or independent reviews are missing, when screenshots are duplicated, when a candidate fails basic accessibility/brand QA, or when cost is unknown. Even after a human `select`, production release remains unapproved.
+
+The browser CI now also builds and renders **three distinct manually authored UI directions** as real Chromium screenshots, storing contact sheets, source manifests and a sealed hold decision. They are intentionally tagged `manual_baseline` and **are not Superdesign, Better Design or Design Taste outputs**. See [MCC-M2.6.2g Real UI Bake-off / Design Quality Decision Gate](docs/MCC-M2.6.2G_REAL_UI_BAKEOFF_DESIGN_QUALITY_GATE.md).

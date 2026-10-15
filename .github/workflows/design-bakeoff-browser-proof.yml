@@ -33,6 +33,24 @@ jobs:
             python -m playwright install --with-deps chromium
             python scripts/design_bakeoff_browser_smoke.py
           fi
+      - name: Three distinct manually authored UI directions and hard decision hold
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            python scripts/design_quality_gate_browser_smoke.py --browser-channel chrome
+          elif command -v chromium >/dev/null 2>&1; then
+            python scripts/design_quality_gate_browser_smoke.py --browser-executable "$(command -v chromium)"
+          else
+            python scripts/design_quality_gate_browser_smoke.py
+          fi
+      - name: Upload real manual-design decision proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bakeoff-manual-directions-decision-proof
+          path: .mado/real-ui-decision-fixture/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload actual fixture screenshot evidence
         if: always()
         uses: actions/upload-artifact@v4
