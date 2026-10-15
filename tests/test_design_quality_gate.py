@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from mado_cockpit.design_bakeoff import BakeoffError
 from mado_cockpit.design_quality_gate import (
     RealUIDecisionGate, QualityGateError, RUN_SCHEMA, _safe_build_tree,
 )
@@ -294,8 +295,7 @@ def test_fixture_manual_baseline_cannot_pass_as_real_provider(monkeypatch, tmp_p
         add_run(tmp_path, gate, lab, plan, candidate, mode="manual_baseline", cost=0.0)
         output = gate.capture_local(exp, candidate)
         assert output["status"] == "captured_unreviewed"
-        with pytest.raises(QualityGateError, match="not a provider") if False else pytest.raises(
-                Exception, match="Fixture-smoke"):
+        with pytest.raises(BakeoffError, match="Fixture-smoke"):
             gate.bridge.review(exp, candidate, evaluation_file=candidate + ".json")
     report = gate.evaluate(exp)
     assert report["status"] == "hold_missing_evidence"
