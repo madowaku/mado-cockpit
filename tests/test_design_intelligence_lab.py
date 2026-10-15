@@ -77,7 +77,7 @@ def test_all_ten_pinned_and_labeled_no_auto_execute(tmp_path):
 @pytest.mark.parametrize("size", [10, 18, 28, 36, 42, 43, 44])
 def test_known_source_upgrades_preserve_review_evidence(tmp_path, size):
     lab, hub = make_lab(tmp_path)
-    approved = hub.add("reactbits", "Approved old UI reference", "https://reactbits.dev/",
+    approved = hub.add("evilbuttons", "Approved old UI reference", "https://evilbuttons.com/",
                        note="Existing reference kept for backwards compatibility")
     hub.review(approved["id"], decision="approve", actor="human:owner",
                note="Reference approved for research only, not source reuse")
