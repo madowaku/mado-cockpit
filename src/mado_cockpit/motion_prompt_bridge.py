@@ -261,6 +261,8 @@ class MotionPromptBridge:
             raise MotionPromptError("Select 1..8 motion IDs and ja/en language")
         if isinstance(scene_index, bool) or not isinstance(scene_index, int) or scene_index < 0:
             raise MotionPromptError("Invalid scene index")
+        if any(not isinstance(value, str) for value in element_ids):
+            raise MotionPromptError("Motion IDs must be strings")
         ids = [value.removeprefix("#") for value in element_ids]
         if len(set(ids)) != len(ids):
             raise MotionPromptError("Duplicate selected motions")
@@ -277,6 +279,7 @@ class MotionPromptBridge:
             raise MotionPromptError("Target has render evidence; do not propose in-place edits")
         project = (foundry.base / verified["project_id"]).resolve()
         brief = json.loads((project / "src/brief.json").read_text(encoding="utf-8"))
+        project_manifest = json.loads((project / "manifest.json").read_text(encoding="utf-8"))
         if scene_index >= len(brief["scenes"]):
             raise MotionPromptError("Scene index outside verified brief")
         scene = brief["scenes"][scene_index]
@@ -298,7 +301,7 @@ class MotionPromptBridge:
             "upstream_version": data["version"], "catalog_sha256": data["catalog_sha256"],
             "snapshot_sha256": snapshot_sha, "license_notice": NOTICE,
             "target_project_id": verified["project_id"],
-            "target_brief_sha256": _sha(_json(brief)),
+            "target_brief_sha256": project_manifest["brief_sha256"],
             "scene_index": scene_index, "scene_duration_frames": scene["duration_frames"],
             "fps": 30, "language": language, "selected_motions": selected,
             "execution_authorized": False, "render_authorized": False,
