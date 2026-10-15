@@ -15,7 +15,6 @@ from pathlib import Path
 import re
 from threading import Thread
 from typing import Any
-from urllib.parse import quote
 
 from .design_bakeoff import ScreenshotEvidenceBridge, BakeoffError
 from .design_intelligence_lab import (
@@ -177,6 +176,7 @@ class RealUIDecisionGate:
             "candidate": candidate, "upstream_repository": CANDIDATE_MAP[candidate]["repository"],
             "upstream_commit": upstream_sha, "task_sha256": task_digest,
             "declaration_sha256": _sha(_read(declaration_file)),
+            "declaration_path": str(declaration_file.resolve()),
             "declaration": declaration,
             "trace": {"sha256": _sha(trace), "path": str(trace_file.resolve()),
                       "bytes": len(trace)},
@@ -207,17 +207,14 @@ class RealUIDecisionGate:
                 or data.get("upstream_repository") != CANDIDATE_MAP[candidate]["repository"]):
             raise QualityGateError("Run receipt no longer matches the pinned experiment")
         decl = data["declaration"]
+        declaration_path = Path(data["declaration_path"])
+        if _sha(_read(declaration_path)) != data["declaration_sha256"]:
+            raise QualityGateError("Run declaration file changed after intake")
         original = _read_run_declaration(
-            folder / "runs" / (candidate + ".json"), experiment=exp,
-            candidate=candidate, task_sha=_sha(_read(task_file)),
-            upstream_sha=CANDIDATE_MAP[candidate]["commit"]) if False else decl
-        # The original declaration bytes may be kept elsewhere; the canonical
-        # serialized declaration is bound inside this immutable receipt.
-        if (not isinstance(original, dict) or _sha(_canonical(original)) != _sha(_canonical(decl))
-                or original.get("experiment") != exp or original.get("candidate") != candidate
-                or original.get("upstream_commit") != CANDIDATE_MAP[candidate]["commit"]
-                or original.get("task_sha256") != _sha(_read(task_file))
-                or original.get("execution_mode") not in {_RUN_MODES[candidate], "manual_baseline"}):
+            declaration_path, experiment=exp, candidate=candidate,
+            task_sha=_sha(_read(task_file)),
+            upstream_sha=CANDIDATE_MAP[candidate]["commit"])
+        if original != decl:
             raise QualityGateError("Run declaration modified")
         trace = data["trace"]
         if _sha(_read(Path(trace["path"]), 1024 * 1024)) != trace["sha256"]:
@@ -398,7 +395,7 @@ class RealUIDecisionGate:
         report = self.evaluate(exp)
         folder, _, _ = self.lab._experiment(exp)
         digest = _sha(_canonical(report))
-        path = folder / "decisions" / "recommendation.json"
+        path = folder / "decisions" / "reports" / (digest + ".json")
         created = _write_immutable(path, _canonical({"sha256": digest, "data": report}) + b"\n")
         if created:
             self.store.append_event(Event(
