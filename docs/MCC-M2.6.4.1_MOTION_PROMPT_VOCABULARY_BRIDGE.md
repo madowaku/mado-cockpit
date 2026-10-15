@@ -40,10 +40,10 @@ curl --fail --location --silent --show-error \
 
 # Linux: sha256sum motion-prompt-catalog.json
 # macOS: shasum -a 256 motion-prompt-catalog.json
-# Use the actual printed digest as <64-hex-digest>.
+# Set MOTION_PROMPT_SHA256 to the actual printed 64-character digest.
 python -m mado_cockpit.motion_prompt_bridge --root . intake \
   --catalog motion-prompt-catalog.json \
-  --expected-sha256 <64-hex-digest>
+  --expected-sha256 "$MOTION_PROMPT_SHA256"
 
 python -m mado_cockpit.motion_prompt_bridge --root . verify
 python -m mado_cockpit.motion_prompt_bridge --root . search --query "スタガー"
