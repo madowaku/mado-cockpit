@@ -18,7 +18,7 @@ from .store import CockpitStore
 SCHEMA = "mado.design-discovery.v1"
 # Historical catalog prefixes keep original records and human approvals usable.
 LEGACY_CATALOG_SIZE = 10  # retained as an API-compatible constant
-LEGACY_CATALOG_SIZES = (10, 18, 28, 36, 42)
+LEGACY_CATALOG_SIZES = (10, 18, 28, 36, 42, 43)
 SOURCES = (
     ("designeer", "designeer.xyz", "discovery", "Design resource directory", "catalog components inspiration"),
     ("prompt-motion", "prompt-motion.com", "motion", "Motion references and prompts", "motion video animation"),
@@ -63,6 +63,7 @@ SOURCES = (
     ("pace-ui", "paceui.com", "components", "UI component reference (availability unverified)", "ui components design unverified"),
     ("feral-ui", "feralui.dev", "components", "UI component reference (availability unverified)", "ui components design unverified"),
     ("takayu-motion-reference", "motion-reference.takayustudio.jp", "motion", "User-provided motion reference site; content and rights pending verification", "motion reference animation inspiration takayu unverified"),
+    ("lucian-uxui", "lucianlabs.dev", "components", "200 MIT-licensed interactive UI examples and agent porting catalog; verify each element", "lucian uxui ui components agent prompt codex accessibility react"),
 )
 CATALOG = tuple(
     {

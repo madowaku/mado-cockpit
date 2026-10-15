@@ -916,3 +916,16 @@ python -m mado_cockpit.component_foundry status component_<digest>
 ~~~
 
 No network calls, third-party code installation, browser capture or autonomous Codex execution occur here. For the complete selection/license/task/QA/review commands and trust boundaries, see [MCC-M2.6.4 Component Selection / License / Visual QA](docs/MCC-M2.6.4_COMPONENT_SELECTION_LICENSE_VISUAL_QA.md).
+
+
+### MCC-M2.6.2d Lucian UX/UI Catalog / Component Implementation Bridge
+
+Lucian UX/UI Prompt is the 44th Design Discovery source, with 200 interactive UI elements indexed from a manually supplied, pinned upstream catalog. Search and produce Codex implementation task metadata only after existing human reference approval and component license evidence gates. No external scripts are executed or downloaded by the bridge.
+
+```bash
+python -m mado_cockpit.design_discovery bootstrap
+python -m mado_cockpit.lucian_bridge intake --index index.json --catalog catalog.tsv --commit 42396145b375a17712fd738ca0e1d977556c0b73
+python -m mado_cockpit.lucian_bridge search --query approval
+```
+
+See [Lucian UX/UI Catalog / Component Implementation Bridge](docs/MCC-M2.6.2D_LUCIAN_UXUI_BRIDGE.md) for the pinned download procedure and human-gated Codex handoff.

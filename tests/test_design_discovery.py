@@ -16,9 +16,9 @@ def hub(tmp_path: Path) -> DesignDiscoveryHub:
     return result
 
 
-def test_forty_two_sources_and_no_automatic_fetch(tmp_path):
+def test_current_sources_and_no_automatic_fetch(tmp_path):
     item = hub(tmp_path)
-    assert len(CATALOG) == 43
+    assert len(CATALOG) == 44
     assert item.bootstrap()["status"] == "existing"
     assert "prompt-motion" in {x["id"] for x in item.sources("motion")}
     assert all(s["mode"] == "manual_link_only" and s["rights"] == "unverified" for s in item.sources())
@@ -226,7 +226,7 @@ def test_catalog_upgrade_from_every_known_historical_version(tmp_path, legacy_si
               if event["type"] == "design.discovery.catalog_upgraded"]
     assert len(events) == 1
     assert events[0]["subject"]["from_source_count"] == legacy_size
-    assert events[0]["subject"]["to_source_count"] == 43
+    assert events[0]["subject"]["to_source_count"] == len(CATALOG)
 
 
 def test_legacy_fingerprint_cannot_claim_future_sources(tmp_path):
