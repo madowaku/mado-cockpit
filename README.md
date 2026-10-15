@@ -982,9 +982,9 @@ The browser CI now also builds and renders **three distinct manually authored UI
 A content-hash-pinned, offline, Japanese/English vocabulary bridge for Motion Prompt's numbered animation, camera, UI, LP and photo examples. It indexes untrusted metadata and example specs without executing third-party Canvas JS, then emits a **data-only** Codex handoff targeting one **source-verified** M2.6.3 Motion Foundry scene. Handoffs remain pending license-scope review and real temporal-frame/human visual QA; no automatic installation, rendering or publishing is authorized.
 
 ```bash
-# Download the public catalog manually and calculate its SHA-256 first.
+# Download the public catalog manually, calculate its SHA-256 and set MOTION_PROMPT_SHA256 first.
 python -m mado_cockpit.motion_prompt_bridge --root . intake \
-  --catalog motion-prompt-catalog.json --expected-sha256 <64-hex-digest>
+  --catalog motion-prompt-catalog.json --expected-sha256 "$MOTION_PROMPT_SHA256"
 python -m mado_cockpit.motion_prompt_bridge --root . search --query "スタガー"
 python -m mado_cockpit.motion_prompt_bridge --root . get '#002'
 python -m mado_cockpit.motion_prompt_bridge --root . handoff \
