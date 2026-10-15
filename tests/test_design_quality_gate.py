@@ -196,7 +196,7 @@ def test_declaration_changes_and_symlinked_files_fail(tmp_path):
     other = tmp_path / "outside.txt"
     other.write_text("Secret-ish data", encoding="utf-8")
     (info["bundle"] / "linked.txt").symlink_to(other)
-    with pytest.raises(QualityGateError, match="Symlink"):
+    with pytest.raises(QualityGateError, match="symlink"):
         _safe_build_tree(info["bundle"])
 
 
