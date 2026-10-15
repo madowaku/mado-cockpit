@@ -359,6 +359,8 @@ class RealUIDecisionGate:
                        and "missing_human_review" not in r["reasons"] for r in rows)
         if not complete:
             status, recommended = "hold_missing_evidence", None
+        elif duplicates:
+            status, recommended = "hold_duplicate_visual_evidence", None
         elif not qualified:
             status, recommended = "hold_no_eligible_candidate", None
         else:
