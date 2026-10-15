@@ -874,7 +874,7 @@ See [docs/MADO_COCKPIT_SPEC.md](docs/MADO_COCKPIT_SPEC.md).
 
 ### MCC-M2.6.2 Design Discovery Hub
 
-Metadata-only design reference registry for Designeer and 42 other curated design-engineering sources (43 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
+Metadata-only design reference registry for Designeer and 52 other curated design-engineering sources (53 total), including premium UI libraries, React components, AI-native interfaces, and motion-graphics tools. External links remain pending until explicitly reviewed by a human; approved references can be exported to a Codex-friendly JSON context pack without scraping, downloading assets, or granting external tool capabilities.
 
 ```bash
 python -m mado_cockpit.design_discovery --root . bootstrap
@@ -929,3 +929,16 @@ python -m mado_cockpit.lucian_bridge search --query approval
 ```
 
 See [Lucian UX/UI Catalog / Component Implementation Bridge](docs/MCC-M2.6.2D_LUCIAN_UXUI_BRIDGE.md) for the pinned download procedure and human-gated Codex handoff.
+
+### MCC-M2.6.2e Design Intelligence / UI Skill Compatibility Lab
+
+An **offline, no-execute compatibility lab** indexes ten pinned UI design repositories, separating three design-agent skills from seven component libraries. It deduplicates Hyperiux Vault, preserves historical Design Discovery approvals and records explicit licensing boundaries, including MIT + Commons Clause, Hyperiux Effects License, and unverified Cursify rights.
+
+```bash
+python -m mado_cockpit.design_discovery --root . bootstrap
+python -m mado_cockpit.design_intelligence_lab --root . catalog
+python -m mado_cockpit.design_intelligence_lab --root . catalog --role design_skill
+python -m mado_cockpit.design_intelligence_lab --root . plan fixtures/design_intelligence/mcc-m2.6.2e-approval-console.json
+```
+
+The fixed-brief plan creates data-only Codex tasks. No Skill, MCP, CLI, external source code, npm install or browser is invoked. Human screenshot evidence can later be submitted with `record` and compared with `compare`; no comparison claims actual visual quality or production release without external evidence and the pre-existing Component Foundry gates. See [Design Intelligence / UI Skill Compatibility Lab](docs/MCC-M2.6.2E_DESIGN_INTELLIGENCE_UI_SKILL_LAB.md).

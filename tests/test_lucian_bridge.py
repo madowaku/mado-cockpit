@@ -74,7 +74,7 @@ def test_catalog_migration_43_to_44_preserves_reviews(tmp_path):
     hub.path.write_text(json.dumps(old), encoding="utf-8")
     assert hub.bootstrap()["status"] == "upgraded"
     assert hub.references() == before
-    assert len(hub.sources()) == 44
+    assert len(hub.sources()) == len(CATALOG)
     assert hub.sources("lucian")[0]["id"] == "lucian-uxui"
 
 
