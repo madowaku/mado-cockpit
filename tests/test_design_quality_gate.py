@@ -301,3 +301,21 @@ def test_fixture_manual_baseline_cannot_pass_as_real_provider(monkeypatch, tmp_p
     assert report["status"] == "hold_missing_evidence"
     assert all("manually_authored_baseline_not_provider_run" in r["reasons"]
                for r in report["candidates"])
+
+
+def test_mismatched_served_html_aborts_without_persistent_evidence(monkeypatch, tmp_path):
+    from mado_cockpit.design_bakeoff import BakeoffError
+
+    def substituted_server(**kwargs):
+        result = fake_real_browser(**kwargs)
+        result["served_html_sha256"] = "f" * 64
+        return result
+
+    monkeypatch.setattr("mado_cockpit.design_bakeoff._browser_capture", substituted_server)
+    gate, lab, plan = make_world(tmp_path)
+    add_run(tmp_path, gate, lab, plan, "design-taste", cost=0.0)
+    with pytest.raises(BakeoffError, match="Served HTML differs"):
+        gate.capture_local(plan["experiment"], "design-taste")
+    evidence = Path(plan["path"]) / "evidence"
+    assert not (evidence / "design-taste.png").exists()
+    assert not (evidence / "design-taste.capture.json").exists()
