@@ -975,3 +975,21 @@ python -m mado_cockpit.design_quality_gate seal exp_<digest>
 No external agent, model, MCP, npm, build tool or billable service runs automatically. The operator supplies real build outputs and runs any provider separately. The Decision Gate holds when runs or independent reviews are missing, when screenshots are duplicated, when a candidate fails basic accessibility/brand QA, or when cost is unknown. Even after a human `select`, production release remains unapproved.
 
 The browser CI now also builds and renders **three distinct manually authored UI directions** as real Chromium screenshots, storing contact sheets, source manifests and a sealed hold decision. They are intentionally tagged `manual_baseline` and **are not Superdesign, Better Design or Design Taste outputs**. See [MCC-M2.6.2g Real UI Bake-off / Design Quality Decision Gate](docs/MCC-M2.6.2G_REAL_UI_BAKEOFF_DESIGN_QUALITY_GATE.md).
+
+
+### MCC-M2.6.4.1 Motion Prompt Intake / Visual Motion Vocabulary Bridge
+
+A content-hash-pinned, offline, Japanese/English vocabulary bridge for Motion Prompt's numbered animation, camera, UI, LP and photo examples. It indexes untrusted metadata and example specs without executing third-party Canvas JS, then emits a **data-only** Codex handoff targeting one **source-verified** M2.6.3 Motion Foundry scene. Handoffs remain pending license-scope review and real temporal-frame/human visual QA; no automatic installation, rendering or publishing is authorized.
+
+```bash
+# Download the public catalog manually and calculate its SHA-256 first.
+python -m mado_cockpit.motion_prompt_bridge --root . intake \
+  --catalog motion-prompt-catalog.json --expected-sha256 <64-hex-digest>
+python -m mado_cockpit.motion_prompt_bridge --root . search --query "スタガー"
+python -m mado_cockpit.motion_prompt_bridge --root . get '#002'
+python -m mado_cockpit.motion_prompt_bridge --root . handoff \
+  --project .mado/cockpit/motion_foundry/motion_<digest> --scene-index 0 --ids '#002'
+```
+
+See [MCC-M2.6.4.1 Motion Prompt Intake / Visual Motion Vocabulary Bridge](docs/MCC-M2.6.4.1_MOTION_PROMPT_VOCABULARY_BRIDGE.md) for digest and provenance rules, compatibility with existing Component Foundry and Motion Foundry, MIT attribution, and QA gates.
+
