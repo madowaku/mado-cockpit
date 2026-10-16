@@ -1,0 +1,28 @@
+name: Sites Gallery Browser Fixture
+on:
+  pull_request:
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_portal.py"
+      - "src/mado_cockpit/sites_gallery.py"
+      - "scripts/sites_gallery_browser_smoke.py"
+      - ".github/workflows/sites-gallery-browser-fixture.yml"
+permissions:
+  contents: read
+jobs:
+  chromium-layout-and-interactions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/sites_gallery_browser_smoke.py --output .mado/sites-gallery-browser-fixture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcc-m2-8-2-gallery-browser-fixtures-only
+          path: .mado/sites-gallery-browser-fixture/
+          if-no-files-found: warn
