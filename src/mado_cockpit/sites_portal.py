@@ -138,10 +138,10 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
     output = output or ROOT / "build" / "sites-portal"
     catalog = validate_catalog(json.loads(catalog_path.read_text(encoding="utf-8")))
     output = output.resolve()
-    if output.exists() and any(output.iterdir()):
-        raise SiteCatalogError(f"Refusing non-empty output directory: {output}")
     if SITE_ROOT.resolve() == output or SITE_ROOT.resolve() in output.parents:
         raise SiteCatalogError("Refusing to build inside source directory")
+    if output.exists() and any(output.iterdir()):
+        raise SiteCatalogError(f"Refusing non-empty output directory: {output}")
     output.mkdir(parents=True, exist_ok=True)
     hashes: dict[str, str] = {}
     for name in ASSETS:
