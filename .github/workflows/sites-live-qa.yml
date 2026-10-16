@@ -1,0 +1,28 @@
+name: Sites Live QA Contract
+on:
+  pull_request:
+    paths:
+      - "src/mado_cockpit/sites_live_qa.py"
+      - "tests/test_sites_live_qa.py"
+      - "docs/MCC-M2.8.1_LIVE_SITES_DOGFOOD.md"
+      - ".github/workflows/sites-live-qa.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/mado_cockpit/sites_live_qa.py"
+      - "tests/test_sites_live_qa.py"
+      - ".github/workflows/sites-live-qa.yml"
+permissions:
+  contents: read
+jobs:
+  fail-closed-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q tests/test_sites_live_qa.py tests/test_sites_portal.py
+      - name: Require human-reviewed live URL
+        run: echo "Live browser capture is intentionally not automated against an unreviewed hosted URL."
