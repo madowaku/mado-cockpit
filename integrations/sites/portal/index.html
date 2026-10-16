@@ -15,7 +15,8 @@
       <a class="mark" href="#top" aria-label="MADO home"><span class="mark-orbit">✳</span></a>
       <div class="rail-caption">MADO<br>LAB</div>
       <div class="rail-line"></div>
-      <a class="rail-link rail-active" href="#projects" title="Projects" aria-label="Projects">◈</a>
+      <a class="rail-link rail-active" href="#gallery" title="Gallery" aria-label="Screenshot gallery">▧</a>
+      <a class="rail-link" href="#projects" title="Projects" aria-label="Projects">◈</a>
       <a class="rail-link" href="#method" title="Release process" aria-label="Release process">◎</a>
       <div class="rail-bottom">M / 28</div>
     </aside>
@@ -31,7 +32,7 @@
             <h1 id="hero-title">MAKE THE<br><span class="gradient-word">INVISIBLE</span><br>VISIBLE<span class="period">.</span></h1>
             <p class="hero-description">つくって、試して、確かめる。<br>散らばったプロジェクトをひとつの視界へ。</p>
             <div class="hero-actions">
-              <a href="#projects" class="primary-link">EXPLORE PROJECTS <span aria-hidden="true">↗</span></a>
+              <a href="#gallery" class="primary-link">EXPLORE THE GALLERY <span aria-hidden="true">↗</span></a>
               <a href="#method" class="secondary-link">RELEASE PROTOCOL <span aria-hidden="true">→</span></a>
             </div>
           </div>
@@ -49,8 +50,22 @@
           <div class="stat"><span id="publishedCount">—</span><small>VERIFIED LIVE SITES</small></div>
           <div class="stat stat-note"><span class="status-led"></span><div>GitHub is the source of truth.<br><strong>Public repository index only.</strong></div></div>
         </section>
+        <section class="gallery-section" id="gallery" aria-labelledby="gallery-title">
+          <div class="section-top">
+            <div><p class="eyebrow">01 / VISUAL EVIDENCE</p><h2 id="gallery-title">A gallery of making<span class="period">.</span></h2></div>
+            <p class="section-side">Real repository image sources.<br>Source located is not deployment verified.</p>
+          </div>
+          <div class="gallery-toolbar">
+            <div id="galleryFilters" class="filters" role="group" aria-label="Image source category"></div>
+            <p id="galleryCount" class="result-label" aria-live="polite">Loading visual sources…</p>
+          </div>
+          <div id="galleryGrid" class="gallery-grid" aria-live="off"></div>
+          <div id="galleryEmpty" class="gallery-empty" hidden>画像の掲載準備中です。出典・権利・画面のレビュー後に追加します。</div>
+          <div id="galleryError" class="notice" role="alert" hidden>Gallery manifest unavailable. The project directory is still usable.</div>
+          <p class="gallery-disclaimer">SOURCE LOCATED ≠ VISUALLY REVIEWED ≠ PUBLICLY DEPLOYED. 素材は公開GitHubの固定コミットから参照し、表示・再利用の最終承認は別途必要です。</p>
+        </section>
         <section class="project-section" id="projects" aria-labelledby="projects-title">
-          <div class="section-top"><div><p class="eyebrow">01 / PROJECT DIRECTORY</p><h2 id="projects-title">The project atlas<span class="period">.</span></h2></div><p class="section-side">From experiments to experiences.<br>Find a project and follow the evidence.</p></div>
+          <div class="section-top"><div><p class="eyebrow">02 / PROJECT DIRECTORY</p><h2 id="projects-title">The project atlas<span class="period">.</span></h2></div><p class="section-side">From experiments to experiences.<br>Find a project and follow the evidence.</p></div>
           <div class="toolbar"><div class="filters" role="group" aria-label="Category filters" id="filters"></div>
             <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Search projects</span><input id="search" type="search" autocomplete="off" placeholder="Search projects..." aria-controls="projectGrid"><kbd>/</kbd></label></div>
           <p class="result-label" id="resultCount" aria-live="polite">Loading project catalog…</p>
@@ -59,7 +74,7 @@
           <div class="notice" id="loadError" role="alert" hidden>Catalog could not be loaded. Refresh this page or check the static build.</div>
         </section>
         <section class="protocol" id="method" aria-labelledby="protocol-title">
-          <div class="protocol-lead"><p class="eyebrow">02 / PUBLICATION GATE</p><h2 id="protocol-title">Proof before<br><em>publish.</em></h2><p>リンクがあることと、公開・動作を検証済みであることは別。公開状態を推測で塗りつぶさない。</p></div>
+          <div class="protocol-lead"><p class="eyebrow">03 / PUBLICATION GATE</p><h2 id="protocol-title">Proof before<br><em>publish.</em></h2><p>リンクがあることと、公開・動作を検証済みであることは別。公開状態を推測で塗りつぶさない。</p></div>
           <div class="protocol-steps">
             <div class="step"><span class="step-num">01</span><div><h3>SOURCE REGISTERED</h3><p>公開GitHubリポジトリのみ登録。非公開ソースや資格情報はカタログに含めない。</p></div></div>
             <div class="step"><span class="step-num">02</span><div><h3>PREVIEW & REVIEW</h3><p>Siteのバージョンを保存して、UI・リンク・表示権限をレビュー。</p></div></div>
@@ -67,7 +82,12 @@
           </div>
         </section>
       </main>
-      <footer><span>© MADO LAB / MCC-M2.8</span><span>BUILD • VERIFY • SHARE</span><a href="https://github.com/madowaku/mado-cockpit" rel="noopener noreferrer" target="_blank">SOURCE ↗</a></footer>
+      <dialog id="galleryDialog" class="gallery-dialog" aria-labelledby="dialogTitle" aria-describedby="dialogDescription">
+        <div class="dialog-top"><p class="eyebrow">SOURCE EVIDENCE / REVIEW PENDING</p><button type="button" class="dialog-close" id="dialogClose" aria-label="Close image detail">✕</button></div>
+        <div class="dialog-image-wrap"><img id="dialogImage" alt="" loading="eager"><p id="dialogImageError" hidden>プレビュー画像を読み込めませんでした。出典リンクから確認できます。</p></div>
+        <div class="dialog-bottom"><div><h2 id="dialogTitle"></h2><p id="dialogDescription"></p><p id="dialogKind" class="dialog-kind"></p></div><a id="dialogSource" rel="noopener noreferrer" target="_blank" href="https://github.com/madowaku/mado-cockpit">VIEW SOURCE ↗</a></div>
+      </dialog>
+      <footer><span>© MADO LAB / MCC-M2.8.2</span><span>BUILD • VERIFY • SHARE</span><a href="https://github.com/madowaku/mado-cockpit" rel="noopener noreferrer" target="_blank">SOURCE ↗</a></footer>
     </div>
   </div>
 </body>
