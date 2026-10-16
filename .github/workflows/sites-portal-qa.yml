@@ -1,0 +1,33 @@
+name: Sites Portal Candidate QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_portal.py"
+      - "tests/test_sites_portal.py"
+      - ".github/workflows/sites-portal-qa.yml"
+  pull_request:
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_portal.py"
+      - "tests/test_sites_portal.py"
+      - ".github/workflows/sites-portal-qa.yml"
+jobs:
+  static-review-candidate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q tests/test_sites_portal.py
+      - run: python -m mado_cockpit.sites_portal --output build/sites-portal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcc-m2-8-portal-review-only
+          path: build/sites-portal/
+          if-no-files-found: error
