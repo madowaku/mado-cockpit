@@ -1,0 +1,31 @@
+name: Sites Gallery Intake Gate
+on:
+  pull_request:
+    paths:
+      - "src/mado_cockpit/sites_asset_intake.py"
+      - "tests/test_sites_asset_intake.py"
+      - "docs/MCC-M2.8.3_EVIDENCE_AWARE_GALLERY_SYNC.md"
+      - ".github/workflows/sites-asset-intake-qa.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/mado_cockpit/sites_asset_intake.py"
+      - "tests/test_sites_asset_intake.py"
+      - ".github/workflows/sites-asset-intake-qa.yml"
+permissions:
+  contents: read
+jobs:
+  pinned-image-intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Synthetic PNG review, provenance and safe staging
+        run: pytest -q tests/test_sites_asset_intake.py tests/test_sites_gallery.py tests/test_sites_portal.py tests/test_sites_live_qa.py
+      - name: Verify explicit fail-closed CLI
+        run: python -m mado_cockpit.sites_asset_intake --help
+      - name: Avoid unauthorized network or publishing
+        run: echo "This workflow performs no GitHub image fetch, site deploy or permissions change."
