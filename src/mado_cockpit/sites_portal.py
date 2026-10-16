@@ -17,7 +17,8 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE_ROOT = ROOT / "integrations" / "sites" / "portal"
-ASSETS = ("index.html", "styles.css", "app.js", "catalog.json")
+GALLERY_PATH = SITE_ROOT / "gallery.json"
+ASSETS = ("index.html", "styles.css", "app.js", "catalog.json", "gallery.json")
 SCHEMA = "mado.sites-catalog.v1"
 CATEGORIES = {"Control", "Assets", "Games", "Audio", "Quality", "Experiences", "Research"}
 STATES = {"source_only", "preview_pending", "published_verified"}
@@ -137,6 +138,8 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
     catalog_path = catalog_path or SITE_ROOT / "catalog.json"
     output = output or ROOT / "build" / "sites-portal"
     catalog = validate_catalog(json.loads(catalog_path.read_text(encoding="utf-8")))
+    from .sites_gallery import validate_gallery
+    gallery = validate_gallery(json.loads(GALLERY_PATH.read_text(encoding="utf-8")), catalog)
     output = output.resolve()
     if SITE_ROOT.resolve() == output or SITE_ROOT.resolve() in output.parents:
         raise SiteCatalogError("Refusing to build inside source directory")
@@ -145,7 +148,7 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
     output.mkdir(parents=True, exist_ok=True)
     hashes: dict[str, str] = {}
     for name in ASSETS:
-        source = catalog_path if name == "catalog.json" else SITE_ROOT / name
+        source = catalog_path if name == "catalog.json" else GALLERY_PATH if name == "gallery.json" else SITE_ROOT / name
         if not source.is_file() or source.is_symlink():
             raise SiteCatalogError(f"Missing or symlinked asset: {name}")
         raw = source.read_bytes()
@@ -161,6 +164,12 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
         "sites_project_id": None,
         "sites_deployment_url": None,
         "deployment_verified": False,
+        "gallery": {
+            "asset_count": len(gallery["items"]),
+            "visual_inspected": False,
+            "reuse_approved": False,
+            "source_manifest": "gallery.json",
+        },
         "project_count": len(catalog["projects"]),
         "verified_site_count": sum(
             p["publication"]["state"] == "published_verified" for p in catalog["projects"]
