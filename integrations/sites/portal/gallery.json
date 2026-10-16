@@ -1,0 +1,89 @@
+{
+  "schema": "mado.sites-gallery.v1",
+  "reviewed_on": "2026-10-16",
+  "visibility": "public_repository_sources",
+  "visual_review": "pending",
+  "deployment_verified": false,
+  "items": [
+    {
+      "id": "maf-review",
+      "project_id": "mado-asset-foundry",
+      "title": "Review state / desktop",
+      "kind": "browser_golden",
+      "description": "Asset FoundryのE2E用ゴールデン画像。公開アプリの稼働証明ではありません。",
+      "featured": true,
+      "source": {
+        "repository": "madowaku/mado-asset-foundry",
+        "commit": "8d2558928dbf66744d12e937d6670f5ed2e4eacb",
+        "path": "e2e/goldens/desktop-reviewed.png",
+        "blob_sha": "efc0e73cae343856f29fdfeeb471991a5cf8fa43",
+        "size_bytes": 733434
+      },
+      "review": {
+        "source_located": true,
+        "visual_inspected": false,
+        "reuse_approved": false
+      }
+    },
+    {
+      "id": "maf-gallery",
+      "project_id": "mado-asset-foundry",
+      "title": "Gallery pending / desktop",
+      "kind": "browser_golden",
+      "description": "Asset Foundryのギャラリー検証用固定画像。実運用デプロイの証拠ではありません。",
+      "featured": false,
+      "source": {
+        "repository": "madowaku/mado-asset-foundry",
+        "commit": "8d2558928dbf66744d12e937d6670f5ed2e4eacb",
+        "path": "e2e/goldens/desktop-gallery-pending.png",
+        "blob_sha": "67ed106a5039affc821b9e72673c9ead5d4e1506",
+        "size_bytes": 743674
+      },
+      "review": {
+        "source_located": true,
+        "visual_inspected": false,
+        "reuse_approved": false
+      }
+    },
+    {
+      "id": "gardenium-home",
+      "project_id": "app-gardenium",
+      "title": "Gardenium / home",
+      "kind": "marketing_asset",
+      "description": "公開リポジトリのベータ紹介用アセット。実機画面の再現性は未確認です。",
+      "featured": true,
+      "source": {
+        "repository": "madowaku/app-gardenium",
+        "commit": "6c3c3d5abacd141b9cc6fed8778223e8f5f11be2",
+        "path": "marketing/beta-launch/assets/01-home.png",
+        "blob_sha": "c6b0e6f8ac70298b1bdef10f0d3fc869a8061c9f",
+        "size_bytes": 103084
+      },
+      "review": {
+        "source_located": true,
+        "visual_inspected": false,
+        "reuse_approved": false
+      }
+    },
+    {
+      "id": "gardenium-greenhouse",
+      "project_id": "app-gardenium",
+      "title": "Gardenium / greenhouse",
+      "kind": "marketing_asset",
+      "description": "Gardeniumのベータ紹介素材。公開サイトの到達性を証明するものではありません。",
+      "featured": false,
+      "source": {
+        "repository": "madowaku/app-gardenium",
+        "commit": "6c3c3d5abacd141b9cc6fed8778223e8f5f11be2",
+        "path": "marketing/beta-launch/assets/04-greenhouse.png",
+        "blob_sha": "959d3c4174e6c41171ed8bc69f88b7452a416570",
+        "size_bytes": 229834
+      },
+      "review": {
+        "source_located": true,
+        "visual_inspected": false,
+        "reuse_approved": false
+      }
+    }
+  ]
+}
