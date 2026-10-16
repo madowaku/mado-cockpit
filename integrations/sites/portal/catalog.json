@@ -1,0 +1,175 @@
+{
+  "schema": "mado.sites-catalog.v1",
+  "snapshot_date": "2026-10-16",
+  "visibility": "public_only",
+  "projects": [
+    {
+      "id": "mado-cockpit",
+      "title": "MADO Cockpit",
+      "category": "Control",
+      "description": "Agent orchestration, evidence review, and human approval gates.",
+      "visual": "control",
+      "featured": true,
+      "repository": "https://github.com/madowaku/mado-cockpit",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-system-one",
+      "title": "MADO System One",
+      "category": "Control",
+      "description": "Shared system architecture and intelligent routing research.",
+      "visual": "orbit",
+      "featured": true,
+      "repository": "https://github.com/madowaku/mado-system-one",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-asset-foundry",
+      "title": "Asset Foundry",
+      "category": "Assets",
+      "description": "License-aware discovery, preview and production-ready asset intake.",
+      "visual": "assets",
+      "featured": true,
+      "repository": "https://github.com/madowaku/mado-asset-foundry",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-game-service-factory",
+      "title": "Game Service Factory",
+      "category": "Games",
+      "description": "Autonomous Godot build, playtesting and gameplay proof.",
+      "visual": "game",
+      "featured": true,
+      "repository": "https://github.com/madowaku/mado-game-service-factory",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-game-audio-loop",
+      "title": "Game Audio Loop",
+      "category": "Audio",
+      "description": "Adaptive game music and sound asset production.",
+      "visual": "audio",
+      "featured": false,
+      "repository": "https://github.com/madowaku/mado-game-audio-loop",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-plugin-factory",
+      "title": "Plugin Factory",
+      "category": "Control",
+      "description": "Connectors, plugin contracts and integration experiments.",
+      "visual": "plugin",
+      "featured": false,
+      "repository": "https://github.com/madowaku/mado-plugin-factory",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-loop",
+      "title": "MADO Loop",
+      "category": "Control",
+      "description": "Iteration and feedback-loop infrastructure.",
+      "visual": "loop",
+      "featured": false,
+      "repository": "https://github.com/madowaku/mado-loop",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-mobile-qa-loop",
+      "title": "Mobile QA Loop",
+      "category": "Quality",
+      "description": "Mobile testing workflows and evidence capture.",
+      "visual": "mobile",
+      "featured": false,
+      "repository": "https://github.com/madowaku/mado-mobile-qa-loop",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "app-gardenium",
+      "title": "App Gardenium",
+      "category": "Experiences",
+      "description": "Experimental app garden for playful ideas.",
+      "visual": "garden",
+      "featured": false,
+      "repository": "https://github.com/madowaku/app-gardenium",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "gear-relay",
+      "title": "GEAR RELAY",
+      "category": "Games",
+      "description": "Mechanics-driven game prototype.",
+      "visual": "gear",
+      "featured": false,
+      "repository": "https://github.com/madowaku/gear-relay",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "mado-liquid-computing",
+      "title": "Liquid Computing Lab",
+      "category": "Research",
+      "description": "Alternative computation models and experiments.",
+      "visual": "liquid",
+      "featured": false,
+      "repository": "https://github.com/madowaku/mado-liquid-computing",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    },
+    {
+      "id": "madowaku-cockpit",
+      "title": "madowaku cockpit",
+      "category": "Control",
+      "description": "Local-first AI handoff and read-only MCP bridge.",
+      "visual": "console",
+      "featured": false,
+      "repository": "https://github.com/madowaku/madowaku-cockpit",
+      "publication": {
+        "state": "source_only",
+        "url": null,
+        "evidence_url": null
+      }
+    }
+  ]
+}
