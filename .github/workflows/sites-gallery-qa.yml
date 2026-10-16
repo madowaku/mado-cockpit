@@ -1,0 +1,39 @@
+name: Sites Gallery Evidence QA
+on:
+  pull_request:
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_gallery.py"
+      - "src/mado_cockpit/sites_portal.py"
+      - "tests/test_sites_gallery.py"
+      - ".github/workflows/sites-gallery-qa.yml"
+  push:
+    branches: [main]
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_gallery.py"
+      - "src/mado_cockpit/sites_portal.py"
+      - "tests/test_sites_gallery.py"
+      - ".github/workflows/sites-gallery-qa.yml"
+permissions:
+  contents: read
+jobs:
+  gallery-source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q tests/test_sites_gallery.py tests/test_sites_portal.py tests/test_sites_live_qa.py
+      - run: node --check integrations/sites/portal/app.js
+      - run: python -m mado_cockpit.sites_portal --output build/sites-portal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcc-m2-8-2-gallery-review-only
+          path: build/sites-portal/
+          if-no-files-found: error
