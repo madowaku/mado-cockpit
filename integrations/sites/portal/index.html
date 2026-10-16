@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1019">
+  <meta name="description" content="MADO projects, experiments and their publication evidence in one visual cockpit.">
+  <title>MADO / PROJECT ATLAS</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="Main navigation">
+      <a class="mark" href="#top" aria-label="MADO home"><span class="mark-orbit">✳</span></a>
+      <div class="rail-caption">MADO<br>LAB</div>
+      <div class="rail-line"></div>
+      <a class="rail-link rail-active" href="#projects" title="Projects" aria-label="Projects">◈</a>
+      <a class="rail-link" href="#method" title="Release process" aria-label="Release process">◎</a>
+      <div class="rail-bottom">M / 28</div>
+    </aside>
+    <div class="workspace" id="top">
+      <header class="topbar">
+        <a class="wordmark" href="#top">madowaku <span> / cockpit</span></a>
+        <div class="topright"><span class="live-dot"></span> EXPERIMENT INDEX <span class="top-separator">/</span> <span id="snapshot">2026.10</span></div>
+      </header>
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="tiny-box"></span> SYSTEM OVERVIEW <span class="hairline"></span> MCC-M2.8</p>
+            <h1 id="hero-title">MAKE THE<br><span class="gradient-word">INVISIBLE</span><br>VISIBLE<span class="period">.</span></h1>
+            <p class="hero-description">つくって、試して、確かめる。<br>散らばったプロジェクトをひとつの視界へ。</p>
+            <div class="hero-actions">
+              <a href="#projects" class="primary-link">EXPLORE PROJECTS <span aria-hidden="true">↗</span></a>
+              <a href="#method" class="secondary-link">RELEASE PROTOCOL <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="art-grid"></div><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="orbit orbit-three"></div><div class="art-core"><span>m.</span></div>
+            <span class="art-label art-label-top">COLLECT / CONNECT / CREATE</span>
+            <span class="art-label art-label-bottom">MADO SYSTEMS <span>●</span> 2026</span>
+            <div class="art-flare"></div>
+          </div>
+        </section>
+        <section class="statbar" aria-label="Project statistics">
+          <div class="stat"><span id="projectCount">—</span><small>INDEXED PROJECTS</small></div>
+          <div class="stat"><span id="categoryCount">—</span><small>PROJECT CATEGORIES</small></div>
+          <div class="stat"><span id="publishedCount">—</span><small>VERIFIED LIVE SITES</small></div>
+          <div class="stat stat-note"><span class="status-led"></span><div>GitHub is the source of truth.<br><strong>Public repository index only.</strong></div></div>
+        </section>
+        <section class="project-section" id="projects" aria-labelledby="projects-title">
+          <div class="section-top"><div><p class="eyebrow">01 / PROJECT DIRECTORY</p><h2 id="projects-title">The project atlas<span class="period">.</span></h2></div><p class="section-side">From experiments to experiences.<br>Find a project and follow the evidence.</p></div>
+          <div class="toolbar"><div class="filters" role="group" aria-label="Category filters" id="filters"></div>
+            <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Search projects</span><input id="search" type="search" autocomplete="off" placeholder="Search projects..." aria-controls="projectGrid"><kbd>/</kbd></label></div>
+          <p class="result-label" id="resultCount" aria-live="polite">Loading project catalog…</p>
+          <div class="project-grid" id="projectGrid" aria-live="off"></div>
+          <div class="empty" id="empty" hidden><span>◇</span><h3>No matching projects</h3><p>検索条件を変更してみてください。</p><button id="reset" type="button">CLEAR FILTERS</button></div>
+          <div class="notice" id="loadError" role="alert" hidden>Catalog could not be loaded. Refresh this page or check the static build.</div>
+        </section>
+        <section class="protocol" id="method" aria-labelledby="protocol-title">
+          <div class="protocol-lead"><p class="eyebrow">02 / PUBLICATION GATE</p><h2 id="protocol-title">Proof before<br><em>publish.</em></h2><p>リンクがあることと、公開・動作を検証済みであることは別。公開状態を推測で塗りつぶさない。</p></div>
+          <div class="protocol-steps">
+            <div class="step"><span class="step-num">01</span><div><h3>SOURCE REGISTERED</h3><p>公開GitHubリポジトリのみ登録。非公開ソースや資格情報はカタログに含めない。</p></div></div>
+            <div class="step"><span class="step-num">02</span><div><h3>PREVIEW & REVIEW</h3><p>Siteのバージョンを保存して、UI・リンク・表示権限をレビュー。</p></div></div>
+            <div class="step"><span class="step-num">03</span><div><h3>DEPLOY VERIFIED</h3><p>公開URL・検証証拠・公開対象を確認してからLiveと表示。</p></div></div>
+          </div>
+        </section>
+      </main>
+      <footer><span>© MADO LAB / MCC-M2.8</span><span>BUILD • VERIFY • SHARE</span><a href="https://github.com/madowaku/mado-cockpit" rel="noopener noreferrer" target="_blank">SOURCE ↗</a></footer>
+    </div>
+  </div>
+</body>
+</html>
