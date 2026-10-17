@@ -12,10 +12,12 @@ dependencies = ["mcp>=2.0,<3"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+semantic = ["sentence-transformers>=6.1.0"]
 
 [project.scripts]
 mado-cockpit = "mado_cockpit.cli:main"
 mado-cockpit-mcp = "mado_cockpit.mcp_server:main"
+mado-cockpit-semantic = "mado_cockpit.semantic_index:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
