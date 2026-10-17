@@ -365,6 +365,21 @@ python -m mado_cockpit.persona_registry \
 
 See `docs/MCC-M2.5_AGENCY_AGENTS_INTAKE.md`.
 
+### MCC-M2.6 Design Harness / Living UI Spec
+
+Design changes from conversations and agents now enter as **review-gated proposals**, rather than silently overwriting UI requirements. Each approved proposal increments a mission-linked revision, updates the canonical `spec.json`, regenerates `spec.md`, and appends an Event Spine receipt.
+
+```bash
+mado-cockpit design-spec init MCC-UI
+mado-cockpit design-spec propose MCC-UI --file fixtures/design_spec/mcc-m2.6-cockpit-ui.json
+mado-cockpit design-spec proposals MCC-UI
+mado-cockpit design-spec preview MCC-UI dchg_<ID>
+mado-cockpit design-spec review MCC-UI dchg_<ID> --decision approve --reviewer human:owner --human-confirm
+mado-cockpit design-spec validate MCC-UI
+```
+
+Requires an existing Cockpit project and `MCC-UI` mission. `--human-confirm` is local intent confirmation, not identity authentication. See [MCC-M2.6 spec](docs/MCC-M2.6_DESIGN_HARNESS_LIVING_UI_SPEC.md).
+
 ### MCC-ART-M0.0 / M0.1 Artifact Workspace + Cloudflare Artifacts
 
 Cockpit now has a provider-neutral remote Artifact Workspace contract plus a Cloudflare Artifacts REST adapter.
