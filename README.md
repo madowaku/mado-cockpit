@@ -4,6 +4,10 @@
 
 It turns AI agents, workspaces, capabilities, evidence, and human decisions into one observable production team.
 
+## MCC-M2.9 Human Test Flight
+
+The Project Atlas now has a **review-only human testing gateway** for Game Service Factory, GEAR RELAY and MADO Cockpit. Each pilot has a curated three-minute mission, voluntary ratings, local feedback storage, JSON export and an explicit GitHub Issue draft handoff. No playable URL, AI-generated mission, automatic issue or Site deployment is claimed. See [Human Test Flight](docs/MCC-M2.9_HUMAN_TEST_FLIGHT.md).
+
 ## Current spine
 
 ### MCC-M0.0 Skeleton

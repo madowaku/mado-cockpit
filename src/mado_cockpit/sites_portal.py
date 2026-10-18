@@ -18,7 +18,9 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[2]
 SITE_ROOT = ROOT / "integrations" / "sites" / "portal"
 GALLERY_PATH = SITE_ROOT / "gallery.json"
-ASSETS = ("index.html", "styles.css", "app.js", "catalog.json", "gallery.json")
+FLIGHTS_PATH = SITE_ROOT / "test-flights.json"
+ASSETS = ("index.html", "styles.css", "app.js", "catalog.json", "gallery.json",
+          "test-flight.html", "test-flight.css", "test-flight.js", "test-flights.json")
 SCHEMA = "mado.sites-catalog.v1"
 CATEGORIES = {"Control", "Assets", "Games", "Audio", "Quality", "Experiences", "Research"}
 STATES = {"source_only", "preview_pending", "published_verified"}
@@ -140,6 +142,8 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
     catalog = validate_catalog(json.loads(catalog_path.read_text(encoding="utf-8")))
     from .sites_gallery import validate_gallery
     gallery = validate_gallery(json.loads(GALLERY_PATH.read_text(encoding="utf-8")), catalog)
+    from .sites_test_flight import validate_test_flights
+    flights = validate_test_flights(json.loads(FLIGHTS_PATH.read_text(encoding="utf-8")), catalog)
     output = output.resolve()
     if SITE_ROOT.resolve() == output or SITE_ROOT.resolve() in output.parents:
         raise SiteCatalogError("Refusing to build inside source directory")
@@ -148,7 +152,8 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
     output.mkdir(parents=True, exist_ok=True)
     hashes: dict[str, str] = {}
     for name in ASSETS:
-        source = catalog_path if name == "catalog.json" else GALLERY_PATH if name == "gallery.json" else SITE_ROOT / name
+        source = (catalog_path if name == "catalog.json" else GALLERY_PATH if name == "gallery.json"
+                  else FLIGHTS_PATH if name == "test-flights.json" else SITE_ROOT / name)
         if not source.is_file() or source.is_symlink():
             raise SiteCatalogError(f"Missing or symlinked asset: {name}")
         raw = source.read_bytes()
@@ -169,6 +174,12 @@ def build_site(*, catalog_path: Path | None = None, output: Path | None = None) 
             "visual_inspected": False,
             "reuse_approved": False,
             "source_manifest": "gallery.json",
+        },
+        "human_test_flight": {
+            "mission_count": len(flights["missions"]),
+            "review_state": "draft",
+            "feedback_upload_enabled": False,
+            "live_play_verified": False,
         },
         "project_count": len(catalog["projects"]),
         "verified_site_count": sum(

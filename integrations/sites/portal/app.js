@@ -44,6 +44,7 @@ function imgWithFallback(item, cssClass, fallback) {
 }
 const palette = {Control:["#a2f6bb","◎"],Assets:["#99c9fc","◇"],Games:["#f2c9a1","✦"],Audio:["#e8b6fa","♫"],Quality:["#9fe5dc","▦"],Experiences:["#e1ef9d","✳"],Research:["#bdb9ff","∿"]};
 const states = {source_only:"SOURCE ONLY",preview_pending:"REVIEW PENDING",published_verified:"LIVE VERIFIED"};
+const humanTestPilots = new Set(["mado-game-service-factory", "gear-relay", "mado-cockpit"]);
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -80,6 +81,11 @@ function buildCard(project, i) {
   foot.append(element("span", "state" + (project.publication.state === "published_verified" ? " verified" : ""), states[project.publication.state]));
   const actions = element("div", "card-links");
   actions.append(link("GITHUB ↗", project.repository));
+  if (humanTestPilots.has(project.id)) {
+    const testLink = element("a", "", "3 MIN HUMAN TEST ↗");
+    testLink.href = "./test-flight.html?project=" + encodeURIComponent(project.id);
+    actions.append(testLink);
+  }
   if (project.publication.state === "published_verified" && project.publication.url) actions.append(link("OPEN SITE ↗", project.publication.url));
   foot.append(actions);body.append(foot);card.append(body);
   return card;
