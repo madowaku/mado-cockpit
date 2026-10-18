@@ -16,6 +16,7 @@
       <div class="rail-caption">MADO<br>LAB</div>
       <div class="rail-line"></div>
       <a class="rail-link rail-active" href="#gallery" title="Gallery" aria-label="Screenshot gallery">▧</a>
+      <a class="rail-link" href="#testflight" title="Human test flight" aria-label="Human test flight">⌁</a>
       <a class="rail-link" href="#projects" title="Projects" aria-label="Projects">◈</a>
       <a class="rail-link" href="#method" title="Release process" aria-label="Release process">◎</a>
       <div class="rail-bottom">M / 28</div>
@@ -64,8 +65,17 @@
           <div id="galleryError" class="notice" role="alert" hidden>Gallery manifest unavailable. The project directory is still usable.</div>
           <p class="gallery-disclaimer">SOURCE LOCATED ≠ VISUALLY REVIEWED ≠ PUBLICLY DEPLOYED. 素材は公開GitHubの固定コミットから参照し、表示・再利用の最終承認は別途必要です。</p>
         </section>
+        <section class="gallery-section" id="testflight" aria-labelledby="testflight-title">
+          <div class="section-top">
+            <div><p class="eyebrow">02 / HUMAN TEST FLIGHT</p><h2 id="testflight-title">Feel it yourself<span class="period">.</span></h2></div>
+            <p class="section-side">3-minute missions, your own verdict.<br>No automatic upload or deployment claims.</p>
+          </div>
+          <p class="hero-description">ゲームもWebアプリも、あなたが3分触って気づいたことを記録。テスト版の起動URLは別途必要です。</p>
+          <a class="primary-link" href="./test-flight.html">START HUMAN TEST ↗</a>
+          <p class="gallery-disclaimer">MISSION DRAFT / REVIEW ONLY. ブラウザ内で明示的に保存・書き出し・Issue下書き化できます。</p>
+        </section>
         <section class="project-section" id="projects" aria-labelledby="projects-title">
-          <div class="section-top"><div><p class="eyebrow">02 / PROJECT DIRECTORY</p><h2 id="projects-title">The project atlas<span class="period">.</span></h2></div><p class="section-side">From experiments to experiences.<br>Find a project and follow the evidence.</p></div>
+          <div class="section-top"><div><p class="eyebrow">03 / PROJECT DIRECTORY</p><h2 id="projects-title">The project atlas<span class="period">.</span></h2></div><p class="section-side">From experiments to experiences.<br>Find a project and follow the evidence.</p></div>
           <div class="toolbar"><div class="filters" role="group" aria-label="Category filters" id="filters"></div>
             <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Search projects</span><input id="search" type="search" autocomplete="off" placeholder="Search projects..." aria-controls="projectGrid"><kbd>/</kbd></label></div>
           <p class="result-label" id="resultCount" aria-live="polite">Loading project catalog…</p>
@@ -74,7 +84,7 @@
           <div class="notice" id="loadError" role="alert" hidden>Catalog could not be loaded. Refresh this page or check the static build.</div>
         </section>
         <section class="protocol" id="method" aria-labelledby="protocol-title">
-          <div class="protocol-lead"><p class="eyebrow">03 / PUBLICATION GATE</p><h2 id="protocol-title">Proof before<br><em>publish.</em></h2><p>リンクがあることと、公開・動作を検証済みであることは別。公開状態を推測で塗りつぶさない。</p></div>
+          <div class="protocol-lead"><p class="eyebrow">04 / PUBLICATION GATE</p><h2 id="protocol-title">Proof before<br><em>publish.</em></h2><p>リンクがあることと、公開・動作を検証済みであることは別。公開状態を推測で塗りつぶさない。</p></div>
           <div class="protocol-steps">
             <div class="step"><span class="step-num">01</span><div><h3>SOURCE REGISTERED</h3><p>公開GitHubリポジトリのみ登録。非公開ソースや資格情報はカタログに含めない。</p></div></div>
             <div class="step"><span class="step-num">02</span><div><h3>PREVIEW & REVIEW</h3><p>Siteのバージョンを保存して、UI・リンク・表示権限をレビュー。</p></div></div>
