@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1019">
+  <meta name="description" content="MADO Human Test Flight: 3-minute, opt-in usability missions and feedback handoff.">
+  <title>HUMAN TEST FLIGHT / MADO</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./test-flight.css">
+  <script src="./test-flight.js" defer></script>
+</head>
+<body>
+  <div class="flight-shell">
+    <header class="flight-header">
+      <a href="./index.html#testflight" class="flight-back">← MADO / PROJECT ATLAS</a>
+      <span class="flight-header-meta"><span class="live-dot" aria-hidden="true"></span> HUMAN REVIEW / MCC-M2.9</span>
+    </header>
+    <main class="flight-main">
+      <div class="flight-heading">
+        <p class="eyebrow"><span class="tiny-box"></span> HUMAN TEST FLIGHT / 01</p>
+        <h1>PLAY<span class="period">.</span> FEEL<span class="period">.</span><br><span class="gradient-word">REPORT.</span></h1>
+        <p>AIが確認できない「操作感」「迷いやすさ」「楽しさ」を3分で確かめる。<br>ブラウザ内で評価をまとめ、送るかどうかは最後にあなたが選ぶ。</p>
+        <span class="flight-safety">REVIEW ONLY / NOT A LIVE DEPLOYMENT CLAIM</span>
+      </div>
+      <div id="flightError" class="flight-alert" role="alert" hidden>テストミッションを読み込めませんでした。プロジェクト一覧に戻ってください。</div>
+      <div id="flightContent" class="flight-layout" hidden>
+        <section class="flight-card" aria-labelledby="missionTitle">
+          <div class="flight-card-top"><span class="flight-index">01 / MISSION</span><span class="flight-time">◷ 3 MIN</span></div>
+          <label for="missionSelect" class="flight-label">テスト対象</label>
+          <select id="missionSelect" class="flight-select"></select>
+          <h2 id="missionTitle" class="flight-title"></h2>
+          <p id="missionGoal" class="flight-goal"></p>
+          <div class="flight-launch">
+            <div class="flight-launch-head"><strong>試遊先を開く</strong><span id="previewState" class="flight-chip"></span></div>
+            <p>カタログに検証済みURLがない場合は、手元のWebプレビューURLを入力してください。Windows版は別途起動して、ここで評価できます。</p>
+            <label for="previewUrl" class="flight-label">テストURL（任意・この画面のみ）</label>
+            <input id="previewUrl" class="flight-input" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://preview.example.com / http://localhost:8765">
+            <div class="flight-actions"><button type="button" id="openPreview" class="flight-primary">プレビューを開く ↗</button><a id="sourceLink" rel="noopener noreferrer" target="_blank" class="flight-secondary">GITHUB SOURCE ↗</a></div>
+            <p id="previewHelp" class="flight-small">未検証のプレビューを公開済みとは扱いません。</p>
+          </div>
+          <fieldset class="flight-fieldset">
+            <legend>確認すること <span>チェックは任意です</span></legend>
+            <div id="stepList" class="flight-steps"></div>
+          </fieldset>
+        </section>
+        <section class="flight-card flight-feedback" aria-labelledby="feedbackTitle">
+          <div class="flight-card-top"><span class="flight-index">02 / HUMAN FEEDBACK</span><span class="flight-time">YOUR CALL</span></div>
+          <h2 id="feedbackTitle" class="flight-title">どうだった？</h2>
+          <p class="flight-goal">一言でも十分。直してほしいところをAIが後から読める記録にする。</p>
+          <fieldset class="flight-fieldset rating-field">
+            <legend>全体の感触 <span>必須</span></legend>
+            <div class="flight-ratings" id="ratings">
+              <button type="button" data-rating="good" aria-pressed="false"><span aria-hidden="true">😄</span>楽しい</button>
+              <button type="button" data-rating="okay" aria-pressed="false"><span aria-hidden="true">😐</span>普通</button>
+              <button type="button" data-rating="stuck" aria-pressed="false"><span aria-hidden="true">😵</span>困った</button>
+            </div>
+          </fieldset>
+          <label for="buildRef" class="flight-label">試した版（任意）</label>
+          <input id="buildRef" class="flight-input" maxlength="120" placeholder="PR # / commit SHA / build name">
+          <label for="note" class="flight-label">ひとこと（任意・最大500文字）</label>
+          <textarea id="note" class="flight-input flight-textarea" maxlength="500" rows="4" placeholder="何をしたら、どう感じた？ 再現手順でもOK。"></textarea>
+          <p class="flight-privacy">🔒 自動送信・自動録画はしません。ローカル保存は明示操作のみ。プレビューURLは報告JSONに含みません。個人情報・秘密情報は記入しないでください。</p>
+          <div class="flight-result-actions">
+            <button type="button" id="saveDraft" class="flight-primary">このブラウザに保存</button>
+            <button type="button" id="exportDraft" class="flight-secondary">JSONを書き出す ↓</button>
+            <button type="button" id="clearDraft" class="flight-secondary flight-clear">記録を消去</button>
+          </div>
+          <div id="feedbackStatus" class="flight-status" role="status" aria-live="polite"></div>
+          <div class="flight-issue">
+            <div><strong>GitHub Issue 下書き</strong><p>内容を確認してからGitHubの作成画面に移動。投稿は自動では行いません。</p></div>
+            <details><summary>送信されるテキストを確認</summary><pre id="issuePreview"></pre></details>
+            <button type="button" id="openIssue" class="flight-issue-button">GitHub Issue を下書き ↗</button>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer class="flight-footer"><span>MADO LAB / HUMAN TEST FLIGHT</span><span>NO AUTO UPLOAD • NO AUTO ISSUE • NO DEPLOY CLAIM</span></footer>
+  </div>
+</body>
+</html>
