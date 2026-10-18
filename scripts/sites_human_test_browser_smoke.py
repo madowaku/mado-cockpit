@@ -88,7 +88,7 @@ def run(output: Path) -> dict:
                             issue_url = page.evaluate("window.__issueDraftUrl")
                             assert issue_url.startswith("https://github.com/madowaku/mado-game-service-factory/issues/new?")
                             assert "body=" in issue_url
-                            assert "移動ボタン" in page.locator("#issuePreview").inner_text()
+                            assert "移動ボタン" in page.locator("#issuePreview").text_content()
                             page.once("dialog", lambda dialog: dialog.accept())
                             page.locator("#clearDraft").click()
                             assert page.evaluate("localStorage.length") == 0
