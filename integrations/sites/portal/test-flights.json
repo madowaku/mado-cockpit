@@ -1,0 +1,48 @@
+{
+  "schema": "mado.human-test-flight.v1",
+  "release_state": "review_only",
+  "missions": [
+    {
+      "id": "mgsf-first-play",
+      "project_id": "mado-game-service-factory",
+      "title": "初見プレイの迷いを見つける",
+      "goal": "操作説明を読まずに最初のプレイを試し、つまずきを報告する。",
+      "target": "web_or_windows",
+      "estimated_minutes": 3,
+      "review_state": "draft",
+      "steps": [
+        "最初の画面を見て、何をすればよいか判断する",
+        "移動・主要アクションをひと通り試す",
+        "やり直し方を探し、迷った場所を記録する"
+      ]
+    },
+    {
+      "id": "gear-relay-core-loop",
+      "project_id": "gear-relay",
+      "title": "コア操作の手触りを試す",
+      "goal": "最初の操作で意図と結果が一致するかを確認する。",
+      "target": "web_or_windows",
+      "estimated_minutes": 3,
+      "review_state": "draft",
+      "steps": [
+        "説明なしで最初の操作を探す",
+        "同じアクションを三回繰り返してみる",
+        "詰まる場面や気持ちよかった瞬間を記録する"
+      ]
+    },
+    {
+      "id": "cockpit-review-flow",
+      "project_id": "mado-cockpit",
+      "title": "人間レビューへの道筋を確認",
+      "goal": "何が検証済みか、次に何をすべきかを見分けられるか試す。",
+      "target": "web",
+      "estimated_minutes": 3,
+      "review_state": "draft",
+      "steps": [
+        "公開状態・ソース状態の違いを探す",
+        "気になるプロジェクトの根拠リンクを開く",
+        "次に行う操作が明確かを評価する"
+      ]
+    }
+  ]
+}
