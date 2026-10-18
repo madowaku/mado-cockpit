@@ -1,0 +1,43 @@
+name: Human Test Flight QA
+on:
+  pull_request:
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_portal.py"
+      - "src/mado_cockpit/sites_test_flight.py"
+      - "tests/test_sites_test_flight.py"
+      - "scripts/sites_human_test_browser_smoke.py"
+      - ".github/workflows/sites-human-test-flight.yml"
+  push:
+    branches: [main]
+    paths:
+      - "integrations/sites/portal/**"
+      - "src/mado_cockpit/sites_portal.py"
+      - "src/mado_cockpit/sites_test_flight.py"
+      - "tests/test_sites_test_flight.py"
+permissions:
+  contents: read
+jobs:
+  contract-and-chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]" playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: pytest -q tests/test_sites_portal.py tests/test_sites_gallery.py tests/test_sites_test_flight.py
+      - run: node --check integrations/sites/portal/app.js
+      - run: node --check integrations/sites/portal/test-flight.js
+      - run: python -m mado_cockpit.sites_portal --output build/sites-portal
+      - run: python scripts/sites_human_test_browser_smoke.py --output .mado/human-test-browser-fixture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcc-m2-9-human-test-browser-fixtures-only
+          path: .mado/human-test-browser-fixture/
+          if-no-files-found: warn
