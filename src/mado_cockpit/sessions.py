@@ -5,7 +5,7 @@ from typing import Mapping
 from uuid import uuid4
 
 from .models import AgentSession
-from .providers import AgentProvider, CodexCLIProvider
+from .providers import AgentProvider, CodexCLIProvider, OpenCodeCLIProvider
 from .store import CockpitStore
 
 
@@ -22,6 +22,7 @@ class SessionManager:
             providers
             or {
                 "codex": CodexCLIProvider(),
+                "opencode": OpenCodeCLIProvider(),
             }
         )
 
