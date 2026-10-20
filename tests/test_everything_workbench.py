@@ -63,5 +63,4 @@ def test_cli_outputs_machine_readable_evidence(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["schema"].endswith(".v1")
     output = tmp_path / "evidence.json"
     assert main(["inspect", "--checkout", str(root), "--app", "photo-studio", "--output", str(output)]) == 0
-    assert json.loads(output.read_text())["visual_evidence"] if False else True
     assert json.loads(output.read_text())["status"] == "inspected_not_executed"
